@@ -162,6 +162,7 @@ namespace System.Text.RegularExpressions.Tests
             yield return new object[] { @"[\D]", RegexOptions.None, "-", "Pass. Group[0]=(0,1)" };
             yield return new object[] { @"ab|cd", RegexOptions.None, "abc", "Pass. Group[0]=(0,2)" };
             yield return new object[] { @"ab|cd", RegexOptions.None, "abcd", "Pass. Group[0]=(0,2)" };
+            yield return new object[] { @"a{2}|a{3}", RegexOptions.None, "aaa", "Pass. Group[0]=(0,2)" };
             yield return new object[] { @"()ef", RegexOptions.None, "def", "Pass. Group[0]=(1,2) Group[1]=(1,0)" };
             yield return new object[] { @"*a", RegexOptions.None, "-", "Error." };
             yield return new object[] { @"(*)b", RegexOptions.None, "-", "Error." };
