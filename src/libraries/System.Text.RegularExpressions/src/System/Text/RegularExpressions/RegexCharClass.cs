@@ -1529,6 +1529,11 @@ namespace System.Text.RegularExpressions
                 return ch.ToString();
             }
 
+            if (ch == '\n')
+            {
+                return "\\n";
+            }
+
             var sb = new StringBuilder();
             int shift;
 
