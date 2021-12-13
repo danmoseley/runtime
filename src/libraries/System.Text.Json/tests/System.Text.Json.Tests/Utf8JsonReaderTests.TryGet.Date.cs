@@ -252,5 +252,15 @@ namespace System.Text.Json.Tests
             Test(testString, isFinalBlock: true);
             Test(testString, isFinalBlock: false);
         }
+
+        [Fact]
+        public static void TryGetDateTime_xx()
+        {
+            string json = JsonSerializer.Serialize(new { X = ">>a"});
+            JsonDocument jsonDocument = JsonDocument.Parse(json);
+            bool result = jsonDocument.RootElement.GetProperty("X").TryGetDateTime(out var x);
+
+            Assert.False(result);
+        }
     }
 }
