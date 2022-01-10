@@ -118,7 +118,7 @@ namespace System.Collections.Generic
                 TreeSet<KeyValuePair<TKey, TValue>>.Node? node = _set.FindNode(new KeyValuePair<TKey, TValue>(key, default(TValue)!));
                 if (node == null)
                 {
-                    throw new KeyNotFoundException(SR.Format(SR.Arg_KeyNotFoundWithKey, key.ToString()));
+                    throw new KeyNotFoundException(SR.Format(SR.Arg_KeyNotFoundWithKey, key.ToString(), "abc"));
                 }
 
                 return node.Item.Value;

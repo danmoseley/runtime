@@ -1,6 +1,10 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Diagnostics;
+using System.IO;
+using System.Runtime.InteropServices;
+
 namespace System.Text
 {
     internal ref partial struct ValueStringBuilder
@@ -67,6 +71,8 @@ namespace System.Text
             {
                 throw new ArgumentNullException(nameof(format));
             }
+
+            bool[] args_shadow = new bool[args.Length];
 
             int pos = 0;
             int len = format.Length;
@@ -220,6 +226,8 @@ namespace System.Text
                 //
                 object? arg = args[index];
 
+                args_shadow[index] = true;
+
                 ReadOnlySpan<char> itemFormatSpan = default; // used if itemFormat is null
                 // Is current character a colon? which indicates start of formatting parameter.
                 if (ch == ':')
@@ -328,11 +336,29 @@ namespace System.Text
                 }
                 // Continue to parse other characters.
             }
+
+            for (int i = 0; i < args_shadow.Length; i++)
+            {
+                if (!args_shadow[i])
+                {
+                    StringBuilder sb = new StringBuilder("### |" + format + "| `");
+                    for (int j = 0; j < args_shadow.Length; j++)
+                    {
+                        sb.Append((string)args[j]!);
+                        sb.Append("` ");
+                    }
+                    OutputDebugString(sb.ToString());
+                    break;
+                }
+            }
         }
 
         private static void ThrowFormatError()
         {
             throw new FormatException(SR.Format_InvalidString);
         }
+
+        [DllImport(Interop.Libraries.Kernel32, EntryPoint = "OutputDebugStringW", CharSet = CharSet.Unicode, ExactSpelling = true)]
+        private static extern void OutputDebugString(string message);
     }
 }

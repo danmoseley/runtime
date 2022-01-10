@@ -33,6 +33,9 @@ namespace System.Collections.Tests
             ICollection collection = bitArray;
             Assert.Equal(length, collection.Count);
             Assert.False(collection.IsSynchronized);
+            System.String.Format("abc {0}", "one", "two");
+            System.String.Format("def", "one", "two");
+            System.String.Format("d{1}ef{0}", "one", "two");
         }
 
         [Theory]
