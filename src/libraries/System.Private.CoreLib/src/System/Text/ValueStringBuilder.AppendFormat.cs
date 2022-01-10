@@ -339,11 +339,16 @@ namespace System.Text
 
             for (int i = 0; i < args_shadow.Length; i++)
             {
+                if (format == lastBadFormat) // reduce verbosity
+                    break;
+
                 if (!args_shadow[i])
                 {
-                    StringBuilder sb = new StringBuilder("### |" + format + "| `");
+                    lastBadFormat = format;
+                    StringBuilder sb = new StringBuilder("### |" + format + "|");
                     for (int j = 0; j < args_shadow.Length; j++)
                     {
+                        sb.Append(" `");
                         sb.Append((string)args[j]!);
                         sb.Append("` ");
                     }
@@ -352,6 +357,8 @@ namespace System.Text
                 }
             }
         }
+
+        private static string lastBadFormat = "";
 
         private static void ThrowFormatError()
         {
