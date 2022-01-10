@@ -349,7 +349,7 @@ namespace System.Text
                     for (int j = 0; j < args_shadow.Length; j++)
                     {
                         sb.Append(" `");
-                        sb.Append((string)args[j]!);
+                        sb.Append(args[j]!.ToString());
                         sb.Append("` ");
                     }
                     OutputDebugString(sb.ToString());
