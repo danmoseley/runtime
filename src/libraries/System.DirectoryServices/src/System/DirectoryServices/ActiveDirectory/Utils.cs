@@ -99,11 +99,10 @@ namespace System.DirectoryServices.ActiveDirectory
         // To disable public/protected constructors for this class
         private Utils() { }
 
-        internal static string GetDnsNameFromDN(string distinguishedName)
+        internal static unsafe string GetDnsNameFromDN(string distinguishedName)
         {
             int result = 0;
             string? dnsName = null;
-            IntPtr results = IntPtr.Zero;
 
             Debug.Assert(distinguishedName != null);
 
@@ -118,8 +117,14 @@ namespace System.DirectoryServices.ActiveDirectory
             IntPtr name = Marshal.StringToHGlobalUni(distinguishedName);
             IntPtr ptr = Marshal.AllocHGlobal(IntPtr.Size);
             Marshal.WriteIntPtr(ptr, name);
-            result = dsCrackNames(IntPtr.Zero, NativeMethods.DS_NAME_FLAG_SYNTACTICAL_ONLY,
-                   NativeMethods.DS_FQDN_1779_NAME, NativeMethods.DS_CANONICAL_NAME, 1, ptr, out results);
+
+            IntPtr results;
+            fixed (IntPtr* resultsPtr = &IntPtr.Zero)
+            {
+                result = dsCrackNames(IntPtr.Zero, NativeMethods.DS_NAME_FLAG_SYNTACTICAL_ONLY,
+                             NativeMethods.DS_FQDN_1779_NAME, NativeMethods.DS_CANONICAL_NAME, 1, ptr, resultsPtr);
+                results = *resultsPtr;
+            }
             if (result == 0)
             {
                 try
@@ -187,11 +192,10 @@ namespace System.DirectoryServices.ActiveDirectory
             return dnsName!;
         }
 
-        internal static string GetDNFromDnsName(string dnsName)
+        internal static unsafe string GetDNFromDnsName(string dnsName)
         {
             int result = 0;
             string? dn = null;
-            IntPtr results = IntPtr.Zero;
 
             Debug.Assert(dnsName != null);
 
@@ -205,8 +209,13 @@ namespace System.DirectoryServices.ActiveDirectory
             IntPtr name = Marshal.StringToHGlobalUni(dnsName + "/");
             IntPtr ptr = Marshal.AllocHGlobal(IntPtr.Size);
             Marshal.WriteIntPtr(ptr, name);
-            result = dsCrackNames(IntPtr.Zero, NativeMethods.DS_NAME_FLAG_SYNTACTICAL_ONLY,
-                         NativeMethods.DS_CANONICAL_NAME, NativeMethods.DS_FQDN_1779_NAME, 1, ptr, out results);
+            IntPtr results;
+            fixed (IntPtr* resultsPtr = &IntPtr.Zero)
+            {
+                result = dsCrackNames(IntPtr.Zero, NativeMethods.DS_NAME_FLAG_SYNTACTICAL_ONLY,
+                             NativeMethods.DS_CANONICAL_NAME, NativeMethods.DS_FQDN_1779_NAME, 1, ptr, resultsPtr);
+                results = *resultsPtr;
+            }
             if (result == 0)
             {
                 try

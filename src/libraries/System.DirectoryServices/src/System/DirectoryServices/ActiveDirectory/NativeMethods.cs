@@ -484,14 +484,14 @@ namespace System.DirectoryServices.ActiveDirectory
             LPTSTR* rpNames,
             PDS_NAME_RESULT* ppResult
             );*/
-        internal delegate int DsCrackNames(
+        internal unsafe delegate int DsCrackNames(
             [In] IntPtr hDS,
             [In] int flags,
             [In] int formatOffered,
             [In] int formatDesired,
             [In] int nameCount,
             [In] IntPtr names,
-            [Out] out IntPtr results);
+            [Out] IntPtr* results);
 
         /*NTSTATUS LsaConnectUntrusted(
               PHANDLE LsaHandle
