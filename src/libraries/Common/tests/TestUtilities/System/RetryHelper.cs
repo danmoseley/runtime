@@ -17,7 +17,12 @@ namespace System
         /// <param name="test">The test to invoke.</param>
         /// <param name="backoffFunc">After a failure, invoked to determine how many milliseconds to wait before the next attempt.  It's passed the number of iterations attempted.</param>
         /// <param name="retryWhen">Invoked to select the exceptions to retry on. If not set, any exception will trigger a retry.</param>
-        public static void Execute(Action test, int maxAttempts = 5, Func<int, int> backoffFunc = null, Predicate<Exception> retryWhen = null)
+        /// <param name="beforeRetriesAction">Invoked before each retry, for example, to clear a cache.</param>
+        public static void Execute(Action test,
+                                   int maxAttempts = 5,
+                                   Func<int, int> backoffFunc = null,
+                                   Predicate<Exception> retryWhen = null,
+                                   Action beforeRetriesAction = () => {})
         {
             // Validate arguments
             if (maxAttempts < 1)
@@ -49,6 +54,7 @@ namespace System
                     }
                 }
 
+                beforeRetriesAction();
                 Thread.Sleep((backoffFunc ?? s_defaultBackoffFunc)(i));
             }
         }
@@ -58,7 +64,13 @@ namespace System
         /// <param name="test">The test to invoke.</param>
         /// <param name="backoffFunc">After a failure, invoked to determine how many milliseconds to wait before the next attempt.  It's passed the number of iterations attempted.</param>
         /// <param name="retryWhen">Invoked to select the exceptions to retry on. If not set, any exception will trigger a retry.</param>
-        public static async Task ExecuteAsync(Func<Task> test, int maxAttempts = 5, Func<int, int> backoffFunc = null, Predicate<Exception> retryWhen = null)
+        /// <param name="beforeRetriesAction">Invoked before each retry, for example, to clear a cache.</param>
+        public static async Task ExecuteAsync(
+                                              Func<Task> test,
+                                              int maxAttempts = 5,
+                                              Func<int, int> backoffFunc = null,
+                                              Predicate<Exception> retryWhen = null,
+                                              Action beforeRetriesAction = () => {})
         {
             // Validate arguments
             if (maxAttempts < 1)
@@ -90,6 +102,7 @@ namespace System
                     }
                 }
 
+                beforeRetriesAction();
                 await Task.Delay((backoffFunc ?? s_defaultBackoffFunc)(i)).ConfigureAwait(false);
             }
         }
