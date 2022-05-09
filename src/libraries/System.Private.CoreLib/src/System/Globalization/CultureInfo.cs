@@ -63,8 +63,8 @@ namespace System.Globalization
         private Calendar? _calendar;
         //
         // The CultureData instance that we are going to read data from.
-        // For supported culture, this will be the CultureData instance that read data from mscorlib assembly.
-        // For customized culture, this will be the CultureData instance that read data from user customized culture binary file.
+        // For supported culture, this will be the CultureData instance that reads data from System.Private.CoreLib.
+        // For customized culture, this will be the CultureData instance that reads data from user customized culture binary file.
         //
         internal CultureData _cultureData;
 
@@ -80,8 +80,6 @@ namespace System.Globalization
         //      fj-fj (custom)  fj-FJ           fj-FJ           en-US (if specified sort is en-US)
         //      en              en
         //
-        // Note that in Silverlight we ask the OS for the text and sort behavior, so the
-        // textinfo and compareinfo names are the same as the name
 
         // This has a de-DE, de-DE_phoneb or fj-FJ style name
         internal string _name;

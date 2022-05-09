@@ -110,7 +110,7 @@ namespace System
 
                 // NOTE: If in the future there is a way to read the second char
                 // without pinning the string (e.g. System.Runtime.CompilerServices.Unsafe
-                // is exposed to mscorlib, or a future version of C# allows inline IL),
+                // is exposed to System.Private.CoreLib, or a future version of C# allows inline IL),
                 // then do that and short-circuit before the fixed.
 
                 if (*(a + 1) != *(b + 1)) goto DiffOffset1;

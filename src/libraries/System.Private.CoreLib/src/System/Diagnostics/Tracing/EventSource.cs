@@ -6087,8 +6087,9 @@ namespace System.Diagnostics.Tracing
         }
 
         private static readonly string[] s_escapes = { "&amp;", "&lt;", "&gt;", "&apos;", "&quot;", "%r", "%n", "%t" };
+
         // Manifest messages use %N conventions for their message substitutions.   Translate from
-        // .NET conventions.   We can't use RegEx for this (we are in mscorlib), so we do it 'by hand'
+        // .NET conventions.   We can't use RegEx for this (we are in System.Private.CoreLib), so we do it 'by hand'
         private string TranslateToManifestConvention(string eventMessage, string evtName)
         {
             StringBuilder? stringBuilder = null;        // We lazily create this

@@ -619,8 +619,8 @@ namespace System.Diagnostics.Contracts
         private static void AssertMustUseRewriter(ContractFailureKind kind, string contractKind)
         {
             // For better diagnostics, report which assembly is at fault.  Walk up stack and
-            // find the first non-mscorlib assembly.
-            Assembly thisAssembly = typeof(Contract).Assembly;  // In case we refactor mscorlib, use Contract class instead of Object.
+            // find the first non-System.Private.CoreLib assembly.
+            Assembly thisAssembly = typeof(Contract).Assembly;
             StackTrace stack = new StackTrace();
             Assembly? probablyNotRewritten = null;
             for (int i = 0; i < stack.FrameCount; i++)

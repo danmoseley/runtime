@@ -12,10 +12,6 @@
 //      DateWords: such as "de" used in es-ES (Spanish) LongDatePattern.
 //      Postfix: such as "ta" used in fi-FI after the month name.
 //
-//  This class is shared among mscorlib.dll and sysglobl.dll.
-//  Use conditional CULTURE_AND_REGIONINFO_BUILDER_ONLY to differentiate between
-//  methods for mscorlib.dll and sysglobl.dll.
-//
 ////////////////////////////////////////////////////////////////////////////
 
 using System.Collections.Generic;

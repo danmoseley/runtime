@@ -67,7 +67,7 @@ namespace System.Globalization
             // Parameter checking.
             if (assembly != typeof(object).Module.Assembly)
             {
-                throw new ArgumentException(SR.Argument_OnlyMscorlib, nameof(assembly));
+                throw new ArgumentException(SR.Argument_OnlySPC, nameof(assembly));
             }
 
             return GetCompareInfo(culture);
@@ -85,7 +85,7 @@ namespace System.Globalization
 
             if (assembly != typeof(object).Module.Assembly)
             {
-                throw new ArgumentException(SR.Argument_OnlyMscorlib, nameof(assembly));
+                throw new ArgumentException(SR.Argument_OnlySPC, nameof(assembly));
             }
 
             return GetCompareInfo(name);

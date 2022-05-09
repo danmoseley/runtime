@@ -157,9 +157,8 @@ namespace System.Resources
             }
             catch (ArgumentException e)
             { // we should catch ArgumentException only.
-                // Note we could go into infinite loops if mscorlib's
-                // NeutralResourcesLanguageAttribute is mangled.  If this assert
-                // fires, please fix the build process for the BCL directory.
+                // Note we could go into infinite loops if System.Private.CoreLib's
+                // NeutralResourcesLanguageAttribute is mangled.
                 if (a == typeof(object).Assembly)
                 {
                     Debug.Fail(System.CoreLib.Name + "'s NeutralResourcesLanguageAttribute is a malformed culture name! name: \"" + attr.CultureName + "\"  Exception: " + e);
@@ -481,11 +480,9 @@ namespace System.Resources
             // Keep people from bothering me about resources problems
             if (_mediator.MainAssembly == typeof(object).Assembly && _mediator.BaseName.Equals(System.CoreLib.Name))
             {
-                // This would break CultureInfo & all our exceptions.
-                Debug.Fail("Couldn't get " + System.CoreLib.Name + ResourceManager.ResFileExtension + " from " + System.CoreLib.Name + "'s assembly" + Environment.NewLineConst + Environment.NewLineConst + "Are you building the runtime on your machine?  Chances are the BCL directory didn't build correctly.  Type 'build -c' in the BCL directory.  If you get build errors, look at buildd.log.  If you then can't figure out what's wrong (and you aren't changing the assembly-related metadata code), ask a BCL dev.\n\nIf you did NOT build the runtime, you shouldn't be seeing this and you've found a bug.");
-
                 // We cannot continue further - simply FailFast.
-                const string MesgFailFast = System.CoreLib.Name + ResourceManager.ResFileExtension + " couldn't be found!  Large parts of the BCL won't work!";
+                const string MesgFailFast = $"Resource stream System.Private.CoreLib.Strings.resources couldn't be found in {System.CoreLib.Name}.";
+                Debug.Fail(MesgFailFast);
                 System.Environment.FailFast(MesgFailFast);
             }
             // We really don't think this should happen - we always

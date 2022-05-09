@@ -1402,8 +1402,8 @@
   <data name="Argument_OneOfCulturesNotSupported" xml:space="preserve">
     <value>Culture name {0} or {1} is not supported.</value>
   </data>
-  <data name="Argument_OnlyMscorlib" xml:space="preserve">
-    <value>Only mscorlib's assembly is valid.</value>
+  <data name="Argument_OnlySPC" xml:space="preserve">
+    <value>Only System.Private.Corelib's assembly is valid.</value>
   </data>
   <data name="Argument_OutOfOrderDateTimes" xml:space="preserve">
     <value>The DateStart property must come before the DateEnd property.</value>
