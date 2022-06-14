@@ -156,11 +156,11 @@ internal static partial class Interop
                 return new OperationCanceledException();
 
             case Error.EFBIG:
-                if (!string.IsNullOrEmpty(path)) File.AppendAllText(Path.Join(Path.GetTempPath(), $"{errorInfo.Error}.{rand}.txt"), Environment.StackTrace);            
+                if (!string.IsNullOrEmpty(path)) File.AppendAllText(Path.Join(Path.GetTempPath(), $"{errorInfo.Error}.{rand}.txt"), Environment.StackTrace);
                 return new ArgumentOutOfRangeException("value", SR.ArgumentOutOfRange_FileLengthTooBig);
 
             case Error.EEXIST:
-                if (string.IsNullOrEmpty(path)) File.AppendAllText(Path.Join(Path.GetTempPath(), $"{errorInfo.Error}.{rand}.txt"), Environment.StackTrace);            
+                if (string.IsNullOrEmpty(path)) File.AppendAllText(Path.Join(Path.GetTempPath(), $"{errorInfo.Error}.{rand}.txt"), Environment.StackTrace);
                 if (!string.IsNullOrEmpty(path))
                 {
                     return new IOException(SR.Format(SR.IO_FileExists_Name, path), errorInfo.RawErrno);
