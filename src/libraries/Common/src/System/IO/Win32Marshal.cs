@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
@@ -11,6 +12,8 @@ namespace System.IO
     /// </summary>
     internal static class Win32Marshal
     {
+        private static int rand = new Random().Next();
+
         /// <summary>
         /// Converts, resetting it, the last Win32 error into a corresponding <see cref="Exception"/> object, optionally
         /// including the specified path in the error message.
@@ -31,31 +34,55 @@ namespace System.IO
             switch (errorCode)
             {
                 case Interop.Errors.ERROR_FILE_NOT_FOUND:
+                {
+                    if (string.IsNullOrEmpty(path)) File.AppendAllText(Path.Join(Path.GetTempPath(), $"{errorCode}.{rand}.txt"), Environment.StackTrace);
                     return new FileNotFoundException(
                         string.IsNullOrEmpty(path) ? SR.IO_FileNotFound : SR.Format(SR.IO_FileNotFound_FileName, path), path);
+                }
                 case Interop.Errors.ERROR_PATH_NOT_FOUND:
+                {
+                    if (string.IsNullOrEmpty(path)) File.AppendAllText(Path.Join(Path.GetTempPath(), $"{errorCode}.{rand}.txt"), Environment.StackTrace);
                     return new DirectoryNotFoundException(
                         string.IsNullOrEmpty(path) ? SR.IO_PathNotFound_NoPathName : SR.Format(SR.IO_PathNotFound_Path, path));
+                }
                 case Interop.Errors.ERROR_ACCESS_DENIED:
+                {
+                    if (string.IsNullOrEmpty(path)) File.AppendAllText(Path.Join(Path.GetTempPath(), $"{errorCode}.{rand}.txt"), Environment.StackTrace);
                     return new UnauthorizedAccessException(
                         string.IsNullOrEmpty(path) ? SR.UnauthorizedAccess_IODenied_NoPathName : SR.Format(SR.UnauthorizedAccess_IODenied_Path, path));
+                }
                 case Interop.Errors.ERROR_ALREADY_EXISTS:
+                {
+                    if (string.IsNullOrEmpty(path)) File.AppendAllText(Path.Join(Path.GetTempPath(), $"{errorCode}.{rand}.txt"), Environment.StackTrace);
                     if (string.IsNullOrEmpty(path))
                         goto default;
                     return new IOException(SR.Format(SR.IO_AlreadyExists_Name, path), MakeHRFromErrorCode(errorCode));
+                }
                 case Interop.Errors.ERROR_FILENAME_EXCED_RANGE:
+                {
+                    if (string.IsNullOrEmpty(path)) File.AppendAllText(Path.Join(Path.GetTempPath(), $"{errorCode}.{rand}.txt"), Environment.StackTrace);
                     return new PathTooLongException(
                         string.IsNullOrEmpty(path) ? SR.IO_PathTooLong : SR.Format(SR.IO_PathTooLong_Path, path));
+                }
                 case Interop.Errors.ERROR_SHARING_VIOLATION:
+                {
+                    if (string.IsNullOrEmpty(path)) File.AppendAllText(Path.Join(Path.GetTempPath(), $"{errorCode}.{rand}.txt"), Environment.StackTrace);
                     return new IOException(
                         string.IsNullOrEmpty(path) ? SR.IO_SharingViolation_NoFileName : SR.Format(SR.IO_SharingViolation_File, path),
                         MakeHRFromErrorCode(errorCode));
+                }
                 case Interop.Errors.ERROR_FILE_EXISTS:
+                {
+                    if (string.IsNullOrEmpty(path)) File.AppendAllText(Path.Join(Path.GetTempPath(), $"{errorCode}.{rand}.txt"), Environment.StackTrace);
                     if (string.IsNullOrEmpty(path))
                         goto default;
                     return new IOException(SR.Format(SR.IO_FileExists_Name, path), MakeHRFromErrorCode(errorCode));
+                }
                 case Interop.Errors.ERROR_OPERATION_ABORTED:
+                {
+                    if (!string.IsNullOrEmpty(path)) File.AppendAllText(Path.Join(Path.GetTempPath(), $"{errorCode}.{rand}.txt"), Environment.StackTrace);
                     return new OperationCanceledException();
+                }
                 case Interop.Errors.ERROR_INVALID_PARAMETER:
                 default:
                     return new IOException(
