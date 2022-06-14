@@ -116,7 +116,7 @@ internal static partial class Interop
         switch (errorInfo.Error)
         {
             case Error.ENOENT:
-                if (string.IsNullOrEmpty(path)) File.AppendAllText(Path.Join(Path.GetTempPath(), $"{errorCode}.{rand}.txt"), Environment.StackTrace);
+                if (string.IsNullOrEmpty(path)) File.AppendAllText(Path.Join(Path.GetTempPath(), $"{errorInfo.Error}.{rand}.txt"), Environment.StackTrace);
                 if (isDirectory)
                 {
                     return !string.IsNullOrEmpty(path) ?
@@ -133,34 +133,34 @@ internal static partial class Interop
             case Error.EACCES:
             case Error.EBADF:
             case Error.EPERM:
-                if (string.IsNullOrEmpty(path)) File.AppendAllText(Path.Join(Path.GetTempPath(), $"{errorCode}.{rand}.txt"), Environment.StackTrace);
+                if (string.IsNullOrEmpty(path)) File.AppendAllText(Path.Join(Path.GetTempPath(), $"{errorInfo.Error}.{rand}.txt"), Environment.StackTrace);
                 Exception inner = GetIOException(errorInfo);
                 return !string.IsNullOrEmpty(path) ?
                     new UnauthorizedAccessException(SR.Format(SR.UnauthorizedAccess_IODenied_Path, path), inner) :
                     new UnauthorizedAccessException(SR.UnauthorizedAccess_IODenied_NoPathName, inner);
 
             case Error.ENAMETOOLONG:
-                if (string.IsNullOrEmpty(path)) File.AppendAllText(Path.Join(Path.GetTempPath(), $"{errorCode}.{rand}.txt"), Environment.StackTrace);
+                if (string.IsNullOrEmpty(path)) File.AppendAllText(Path.Join(Path.GetTempPath(), $"{errorInfo.Error}.{rand}.txt"), Environment.StackTrace);
                 return !string.IsNullOrEmpty(path) ?
                     new PathTooLongException(SR.Format(SR.IO_PathTooLong_Path, path)) :
                     new PathTooLongException(SR.IO_PathTooLong);
 
             case Error.EWOULDBLOCK:
-                if (string.IsNullOrEmpty(path)) File.AppendAllText(Path.Join(Path.GetTempPath(), $"{errorCode}.{rand}.txt"), Environment.StackTrace);
+                if (string.IsNullOrEmpty(path)) File.AppendAllText(Path.Join(Path.GetTempPath(), $"{errorInfo.Error}.{rand}.txt"), Environment.StackTrace);
                 return !string.IsNullOrEmpty(path) ?
                     new IOException(SR.Format(SR.IO_SharingViolation_File, path), errorInfo.RawErrno) :
                     new IOException(SR.IO_SharingViolation_NoFileName, errorInfo.RawErrno);
 
             case Error.ECANCELED:
-                if (!string.IsNullOrEmpty(path)) File.AppendAllText(Path.Join(Path.GetTempPath(), $"{errorCode}.{rand}.txt"), Environment.StackTrace);
+                if (!string.IsNullOrEmpty(path)) File.AppendAllText(Path.Join(Path.GetTempPath(), $"{errorInfo.Error}.{rand}.txt"), Environment.StackTrace);
                 return new OperationCanceledException();
 
             case Error.EFBIG:
-                if (!string.IsNullOrEmpty(path)) File.AppendAllText(Path.Join(Path.GetTempPath(), $"{errorCode}.{rand}.txt"), Environment.StackTrace);            
+                if (!string.IsNullOrEmpty(path)) File.AppendAllText(Path.Join(Path.GetTempPath(), $"{errorInfo.Error}.{rand}.txt"), Environment.StackTrace);            
                 return new ArgumentOutOfRangeException("value", SR.ArgumentOutOfRange_FileLengthTooBig);
 
             case Error.EEXIST:
-                if (string.IsNullOrEmpty(path)) File.AppendAllText(Path.Join(Path.GetTempPath(), $"{errorCode}.{rand}.txt"), Environment.StackTrace);            
+                if (string.IsNullOrEmpty(path)) File.AppendAllText(Path.Join(Path.GetTempPath(), $"{errorInfo.Error}.{rand}.txt"), Environment.StackTrace);            
                 if (!string.IsNullOrEmpty(path))
                 {
                     return new IOException(SR.Format(SR.IO_FileExists_Name, path), errorInfo.RawErrno);
@@ -174,7 +174,7 @@ internal static partial class Interop
 
     internal static Exception GetIOException(Interop.ErrorInfo errorInfo, string? path = null)
     {
-        if (string.IsNullOrEmpty(path)) File.AppendAllText(Path.Join(Path.GetTempPath(), $"{errorCode}.{rand}.GetIOException.txt"), Environment.StackTrace);
+        if (string.IsNullOrEmpty(path)) File.AppendAllText(Path.Join(Path.GetTempPath(), $"{errorInfo.Error}.{rand}.GetIOException.txt"), Environment.StackTrace);
         string msg = errorInfo.GetErrorMessage();
         return new IOException(
             string.IsNullOrEmpty(path) ? msg : $"{msg} : '{path}'", errorInfo.RawErrno);
