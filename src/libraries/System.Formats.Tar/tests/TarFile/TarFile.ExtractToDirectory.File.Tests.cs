@@ -44,6 +44,26 @@ namespace System.Formats.Tar.Tests
             Assert.Throws<DirectoryNotFoundException>(() => TarFile.ExtractToDirectory(sourceFileName: filePath, destinationDirectoryName: dirPath, overwriteFiles: false));
         }
 
+        [Fact]
+        public void SetsLastModifiedTimeCorrectly()
+        {
+            using TempDirectory root = new TempDirectory();
+
+            string filePath = Path.Join(root.Path, "file.tar");
+            string dirPath = Path.Join(root.Path, "dir");
+
+            File.Create(filePath).Dispose();
+            var dt = new DateTime(2001, 1, 2, 3, 4, 5, DateTimeKind.Local);
+            File.SetLastWriteTime(destinationFileName, dt);
+
+            TarFile.CreateFromDirectory(sourceDirectoryName: dirPath, destinationFileName: filePath, includeBaseDirectory: false)
+
+            TarFile.ExtractToDirectory(sourceFileName: filePath, destinationDirectoryName: dirPath, overwriteFiles: false);
+
+            Assert.True(File.Exists(filePath));
+            Assert.InRange(File.SetLastWriteTimeUtc(filePath), dt.Utc.AddSeconds(-3), dt.Utc.AddSeconds(3)); // include some slop for filesystem granularity
+        }
+
         [Theory]
         [InlineData(TestTarFormat.v7)]
         [InlineData(TestTarFormat.ustar)]
