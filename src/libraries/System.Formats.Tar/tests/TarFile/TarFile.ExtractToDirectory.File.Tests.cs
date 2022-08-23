@@ -45,7 +45,7 @@ namespace System.Formats.Tar.Tests
         }
 
         [Fact]
-        public void SetsLastModifiedTimeOnExtractedItems()
+        public void SetsLastModifiedTimeOnExtractedItems_FromDisk()
         {
             using TempDirectory root = new TempDirectory();
 
@@ -76,6 +76,48 @@ namespace System.Formats.Tar.Tests
 
             Assert.True(File.Exists(outFile));
             AssertFileSystemTimestamp(dtFile, File.GetLastWriteTime(outFile));
+        }
+
+        [Fact]
+        public void SetsLastModifiedTimeOnExtractedItems_WithDirectoryEntry()
+        {
+            using TempDirectory source = new TempDirectory();
+            using TempDirectory destination = new TempDirectory();
+
+            var dto1 = new DateTimeOffset(2002, 3, 4, 5, 6, 7, new TimeSpan(-5, 0, 0));
+            var dto2 = new DateTimeOffset(2003, 3, 4, 5, 6, 7, new TimeSpan(4, 0, 0));
+            var dto3 = new DateTimeOffset(2004, 3, 4, 5, 6, 7, new TimeSpan(6, 0, 0));
+
+            string archivePath = Path.Join(source.Path, "archive.tar");
+            using FileStream archiveStream = File.Create(archivePath);
+            using (TarWriter writer = new TarWriter(archiveStream))
+            {
+                PaxTarEntry segment1 = new PaxTarEntry(TarEntryType.Directory, "segment1");
+                segment1.ModificationTime = dto1;
+                writer.WriteEntry(segment1);
+
+                PaxTarEntry segment2 = new PaxTarEntry(TarEntryType.Directory, "segment1/segment2");
+                segment2.ModificationTime = dto2;
+                writer.WriteEntry(segment2);
+
+                PaxTarEntry file = new PaxTarEntry(TarEntryType.RegularFile, "segment1/segment2/file.txt");
+                file.ModificationTime = dto3;
+                writer.WriteEntry(file);
+            }
+
+            TarFile.ExtractToDirectory(archivePath, destination.Path, overwriteFiles: false);
+
+            string segment1Path = Path.Join(destination.Path, "segment1");
+            Assert.True(Directory.Exists(segment1Path), $"{segment1Path}' does not exist.");
+            AssertFileSystemTimestamp(dto1.LocalDateTime, File.GetLastWriteTime(segment1Path));
+
+            string segment2Path = Path.Join(segment1Path, "segment2");
+            Assert.True(Directory.Exists(segment2Path), $"{segment2Path}' does not exist.");
+            AssertFileSystemTimestamp(dto2.LocalDateTime, File.GetLastWriteTime(segment2Path));
+
+            string filePath = Path.Join(segment2Path, "file.txt");
+            Assert.True(File.Exists(filePath), $"{filePath}' does not exist.");
+            AssertFileSystemTimestamp(dto3.LocalDateTime, File.GetLastWriteTime(filePath));
         }
 
         [Theory]

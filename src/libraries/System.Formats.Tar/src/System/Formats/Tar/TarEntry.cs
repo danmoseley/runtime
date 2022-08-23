@@ -414,10 +414,12 @@ namespace System.Formats.Tar
                     if (!OperatingSystem.IsWindows())
                     {
                         Directory.CreateDirectory(filePath, Mode);
+                        AttemptSetLastWriteTime(filePath, ModificationTime, isDirectory: true);
                     }
                     else
                     {
                         Directory.CreateDirectory(filePath);
+                        AttemptSetLastWriteTime(filePath, ModificationTime, isDirectory: true);
                     }
                     break;
 
