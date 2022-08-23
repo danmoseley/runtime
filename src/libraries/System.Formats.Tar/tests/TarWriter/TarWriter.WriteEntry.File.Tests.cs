@@ -158,7 +158,7 @@ namespace System.Formats.Tar.Tests
             }
         }
 
-        [ConditionalTheory(typeof(MountHelper), nameof(MountHelper.CanCreateSymbolicLinks))]
+        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.CanCreateSymbolicLinks))]
         [InlineData(TarEntryFormat.V7, false)]
         [InlineData(TarEntryFormat.V7, true)]
         [InlineData(TarEntryFormat.Ustar, false)]

@@ -118,7 +118,7 @@ namespace System.IO.Tests
             Assert.False(di.Exists);
         }
 
-        [ConditionalFact(typeof(MountHelper), nameof(MountHelper.CanCreateSymbolicLinks))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.CanCreateSymbolicLinks))]
         public void SymlinkToNewDirectoryInfo()
         {
             string path = GetTestFilePath();
@@ -131,7 +131,7 @@ namespace System.IO.Tests
             Assert.True(new DirectoryInfo(linkPath).Exists);
         }
 
-        [ConditionalFact(typeof(MountHelper), nameof(MountHelper.CanCreateSymbolicLinks))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.CanCreateSymbolicLinks))]
         public void SymLinksMayExistIndependentlyOfTarget()
         {
             var path = GetTestFilePath();

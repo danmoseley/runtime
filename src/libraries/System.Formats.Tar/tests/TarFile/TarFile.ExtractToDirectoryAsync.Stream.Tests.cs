@@ -121,7 +121,7 @@ namespace System.Formats.Tar.Tests
             }
         }
 
-        [ConditionalTheory(typeof(MountHelper), nameof(MountHelper.CanCreateSymbolicLinks))]
+        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.CanCreateSymbolicLinks))]
         [InlineData(TarEntryFormat.Pax)]
         [InlineData(TarEntryFormat.Gnu)]
         public Task Extract_SymbolicLinkEntry_TargetInsideDirectory_Async(TarEntryFormat format) => Extract_LinkEntry_TargetInsideDirectory_Internal_Async(TarEntryType.SymbolicLink, format, null);
@@ -131,7 +131,7 @@ namespace System.Formats.Tar.Tests
         [InlineData(TarEntryFormat.Gnu)]
         public Task Extract_HardLinkEntry_TargetInsideDirectory_Async(TarEntryFormat format) => Extract_LinkEntry_TargetInsideDirectory_Internal_Async(TarEntryType.HardLink, format, null);
 
-        [ConditionalTheory(typeof(MountHelper), nameof(MountHelper.CanCreateSymbolicLinks))]
+        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.CanCreateSymbolicLinks))]
         [InlineData(TarEntryFormat.Pax)]
         [InlineData(TarEntryFormat.Gnu)]
         public Task Extract_SymbolicLinkEntry_TargetInsideDirectory_LongBaseDir_Async(TarEntryFormat format) => Extract_LinkEntry_TargetInsideDirectory_Internal_Async(TarEntryType.SymbolicLink, format, new string('a', 99));

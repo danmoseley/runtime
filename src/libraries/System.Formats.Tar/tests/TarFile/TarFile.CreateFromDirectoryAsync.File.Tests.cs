@@ -238,7 +238,7 @@ namespace System.Formats.Tar.Tests
             }
         }
 
-        [ConditionalFact(typeof(MountHelper), nameof(MountHelper.CanCreateSymbolicLinks))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.CanCreateSymbolicLinks))]
         public async Task SkipRecursionIntoDirectorySymlinksAsync()
         {
             using TempDirectory root = new TempDirectory();
@@ -269,7 +269,7 @@ namespace System.Formats.Tar.Tests
             Assert.Null(await reader.GetNextEntryAsync()); // file.txt should not be found
         }
 
-        [ConditionalFact(typeof(MountHelper), nameof(MountHelper.CanCreateSymbolicLinks))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.CanCreateSymbolicLinks))]
         public async Task SkipRecursionIntoBaseDirectorySymlinkAsync()
         {
             using TempDirectory root = new TempDirectory();

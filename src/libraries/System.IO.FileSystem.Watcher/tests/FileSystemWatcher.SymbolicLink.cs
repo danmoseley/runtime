@@ -7,7 +7,7 @@ using Xunit.Sdk;
 
 namespace System.IO.Tests
 {
-    [ConditionalClass(typeof(MountHelper), nameof(MountHelper.CanCreateSymbolicLinks))]
+    [ConditionalClass(typeof(PlatformDetection), nameof(PlatformDetection.CanCreateSymbolicLinks))]
     public class SymbolicLink_Changed_Tests : FileSystemWatcherTest
     {
         private string CreateSymbolicLinkToTarget(string targetPath, bool isDirectory, string linkPath = null)
