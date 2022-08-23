@@ -462,5 +462,13 @@ namespace System.Formats.Tar.Tests
 
             AssertFileModeEquals(destination, TestPermission1);
         }
+
+        protected void AssertFileSystemTimestamp(DateTime expected, DateTime actual)
+        {
+            Assert.Equal(DateTimeKind.Local, expected.Kind);
+            Assert.Equal(DateTimeKind.Local, actual.Kind);
+             // include some slop for filesystem granularity
+            Assert.InRange(actual.Ticks, expected.AddSeconds(-3).Ticks, expected.AddSeconds(3).Ticks);
+        }
     }
 }

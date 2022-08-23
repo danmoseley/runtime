@@ -288,6 +288,7 @@ namespace System.Formats.Tar
             if (EntryType == TarEntryType.Directory)
             {
                 TarHelpers.CreateDirectory(fileDestinationPath, Mode, pendingModes);
+                AttemptSetLastWriteTime(fileDestinationPath, ModificationTime, isDirectory: true);
             }
             else
             {
@@ -310,6 +311,7 @@ namespace System.Formats.Tar
             if (EntryType == TarEntryType.Directory)
             {
                 TarHelpers.CreateDirectory(fileDestinationPath, Mode, pendingModes);
+                AttemptSetLastWriteTime(fileDestinationPath, ModificationTime, isDirectory: true);
                 return Task.CompletedTask;
             }
             else
@@ -529,7 +531,7 @@ namespace System.Formats.Tar
                 DataStream?.CopyTo(fs);
             }
 
-            AttemptSetLastWriteTime(destinationFileName, ModificationTime);
+            AttemptSetLastWriteTime(destinationFileName, ModificationTime, isDirectory: false);
         }
 
         // Asynchronously extracts the current entry as a regular file into the specified destination.
@@ -551,14 +553,21 @@ namespace System.Formats.Tar
                 }
             }
 
-            AttemptSetLastWriteTime(destinationFileName, ModificationTime);
+            AttemptSetLastWriteTime(destinationFileName, ModificationTime, isDirectory: false);
         }
 
-        private static void AttemptSetLastWriteTime(string destinationFileName, DateTimeOffset lastWriteTime)
+        private static void AttemptSetLastWriteTime(string path, DateTimeOffset lastWriteTime, bool isDirectory)
         {
             try
             {
-                File.SetLastWriteTime(destinationFileName, lastWriteTime.LocalDateTime); // SetLastWriteTime expects local time
+                if (isDirectory)
+                {
+                    Directory.SetLastWriteTime(path, lastWriteTime.LocalDateTime); // SetLastWriteTime expects local time
+                }
+                else
+                {
+                    File.SetLastWriteTime(path, lastWriteTime.LocalDateTime); // SetLastWriteTime expects local time
+                }
             }
             catch
             {
