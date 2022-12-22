@@ -897,6 +897,35 @@ partial class Program
         }
 
         [Fact]
+        public async Task UnnecessaryChangesAvoidedByFixer()
+        {
+            string test = @"using System.Text.RegularExpressions;
+
+partial class Program
+{
+    static void Main(String[] args)
+    {
+        Regex regex = (Regex)[|new Regex(""foo"")|];
+    }
+}";
+
+            string expectedFixedCode = @"using System.Text.RegularExpressions;
+
+partial class Program
+{
+    static void Main(String[] args)
+    {
+        Regex regex = (Regex)MyRegex();
+    }
+
+    [GeneratedRegex(""foo"")]
+    private static partial Regex MyRegex();
+}";
+
+            await VerifyCS.VerifyCodeFixAsync(test, expectedFixedCode);
+        }
+
+        [Fact]
         public async Task TestAsArgument()
         {
             string test = @"using System.Text.RegularExpressions;
