@@ -903,9 +903,9 @@ partial class Program
 
 partial class Program
 {
-    static void Main(String[] args)
+    static void Main(System.String[] args) // remains upper case String
     {
-        Regex regex = (Regex)[|new Regex(""foo"")|];
+        Regex regex = (Regex)[|new Regex(""foo"")|]; // cast remains
     }
 }";
 
@@ -913,9 +913,9 @@ partial class Program
 
 partial class Program
 {
-    static void Main(String[] args)
+    static void Main(System.String[] args) // remains upper case String
     {
-        Regex regex = (Regex)MyRegex();
+        Regex regex = (Regex)MyRegex(); // cast remains
     }
 
     [GeneratedRegex(""foo"")]
