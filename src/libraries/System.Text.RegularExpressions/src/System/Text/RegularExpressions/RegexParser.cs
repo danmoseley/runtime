@@ -277,9 +277,9 @@ namespace System.Text.RegularExpressions
             char ch;
             bool isQuantifier = false;
 
-            // For the main Capture object, strip out the IgnoreCase option. The rest of the nodes will strip it out depending on the content
+            // For the main CaptureGroup object, strip out the IgnoreCase option. The rest of the nodes will strip it out depending on the content
             // of each node.
-            StartGroup(new RegexNode(RegexNodeKind.Capture, (_options & ~RegexOptions.IgnoreCase), 0, -1));
+            StartGroup(new RegexNode(RegexNodeKind.CaptureGroup, (_options & ~RegexOptions.IgnoreCase), 0, -1));
 
             while (CharsRight() > 0)
             {
@@ -406,7 +406,7 @@ namespace System.Text.RegularExpressions
                     case '.':
                         _unit = UseOptionS() ?
                             new RegexNode(RegexNodeKind.Set, _options & ~RegexOptions.IgnoreCase, RegexCharClass.AnyClass) :
-                            new RegexNode(RegexNodeKind.Notone, _options & ~RegexOptions.IgnoreCase, '\n');
+                            new RegexNode(RegexNodeKind.NotOne, _options & ~RegexOptions.IgnoreCase, '\n');
                         break;
 
                     case '{':
@@ -792,7 +792,7 @@ namespace System.Text.RegularExpressions
                 }
                 else
                 {
-                    return new RegexNode(RegexNodeKind.Capture, _options, _autocap++, -1);
+                    return new RegexNode(RegexNodeKind.CaptureGroup, _options, _autocap++, -1);
                 }
             }
 
@@ -829,7 +829,7 @@ namespace System.Text.RegularExpressions
 
                     case '>':
                         // atomic subexpression
-                        nodeType = RegexNodeKind.Atomic;
+                        nodeType = RegexNodeKind.AtomicGroup;
                         break;
 
                     case '\'':
@@ -971,7 +971,7 @@ namespace System.Text.RegularExpressions
 
                                 if ((capnum != -1 || uncapnum != -1) && CharsRight() > 0 && RightCharMoveRight() == close)
                                 {
-                                    return new RegexNode(RegexNodeKind.Capture, _options, capnum, uncapnum);
+                                    return new RegexNode(RegexNodeKind.CaptureGroup, _options, capnum, uncapnum);
                                 }
                                 goto BreakRecognize;
                         }

@@ -56,7 +56,7 @@ namespace System.Text.RegularExpressions
         /// <remarks>
         /// Certain features aren't available when this option is set, including balancing groups,
         /// backreferences, positive and negative lookaheads and lookbehinds, and atomic groups.
-        /// Capture groups are also ignored, such that the only capture available is that for
+        /// CaptureGroup groups are also ignored, such that the only capture available is that for
         /// the top-level match.
         /// </remarks>
         NonBacktracking         = 0x0400,

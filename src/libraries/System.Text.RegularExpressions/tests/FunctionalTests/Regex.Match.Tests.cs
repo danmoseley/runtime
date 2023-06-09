@@ -142,7 +142,7 @@ namespace System.Text.RegularExpressions.Tests
 
                 if (!RegexHelpers.IsNonBacktracking(engine))
                 {
-                    // Atomic greedy
+                    // AtomicGroup greedy
                     yield return (Case("(?>[0-9]+)abc"), "abc12345abc", options, 3, 8, true, "12345abc");
                     yield return (Case("(?>(?>[0-9]+))abc"), "abc12345abc", options, 3, 8, true, "12345abc");
                     yield return (Case("(?>[0-9]*)abc"), "abc12345abc", options, 3, 8, true, "12345abc");
@@ -173,7 +173,7 @@ namespace System.Text.RegularExpressions.Tests
                     yield return (Case("[a-z]{0,4}(?=[x-z]*.)(?=cd)"), "abcdxyz1", options, 0, 8, true, "ab");
                     yield return (Case("[a-z]{0,4}(?![x-z]*[wx])(?=cd)"), "abcdxyz1", options, 0, 8, true, "ab");
 
-                    // Atomic lazy
+                    // AtomicGroup lazy
                     yield return (Case("(?>[0-9]+?)abc"), "abc12345abc", options, 3, 8, true, "5abc");
                     yield return (Case("(?>(?>[0-9]+?))abc"), "abc12345abc", options, 3, 8, true, "5abc");
                     yield return (Case("(?>[0-9]*?)abc"), "abc12345abc", options, 3, 8, true, "abc");
@@ -558,7 +558,7 @@ namespace System.Text.RegularExpressions.Tests
                 yield return (@"(?<cat>cat)\w+(?<dog-0>dog)", "cat_Hello_World_dog", RegexOptions.None, 0, 19, false, string.Empty);
             }
 
-            // Atomic Zero-Width Assertions \A \Z \z \b \B
+            // AtomicGroup Zero-Width Assertions \A \Z \z \b \B
             yield return (@"\A(cat)\s+(dog)", "cat   \n\n\ncat     dog", RegexOptions.None, 0, 20, false, string.Empty);
             yield return (@"\A(cat)\s+(dog)", "cat   \n\n\ncat     dog", RegexOptions.Multiline, 0, 20, false, string.Empty);
             if (!RegexHelpers.IsNonBacktracking(engine))

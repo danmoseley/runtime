@@ -11,54 +11,18 @@ namespace System.Text.RegularExpressions
     /// required for that operation.  For example, the subexpression `a{2,7}[^b]` would be represented as the sequence
     ///     0 97 2 3 97 5 10 98
     /// which is interpreted as:
-    ///     0  = opcode for Onerep (a{2, 7} is written out as a repeater for the minimum followed by a loop for the maximum minus the minimum)
+    ///     0  = opcode for RepeatOne (a{2, 7} is written out as a repeater for the minimum followed by a loop for the maximum minus the minimum)
     ///     97 = 'a'
     ///     2  = repeat count
-    ///     3  = opcode for Oneloop
+    ///     3  = opcode for LoopOne
     ///     97 = 'a'
     ///     5  = max iteration count
-    ///     10 = opcode for Notone
+    ///     10 = opcode for NotOne
     ///     98 = 'b'
     /// </remarks>
     internal enum RegexOpcode
     {
         // Primitive operations
-
-        /// <summary>Repeater of the specified character.</summary>
-        /// <remarks>Operand 0 is the character. Operand 1 is the repetition count.</remarks>
-        Onerep = 0,
-
-        /// <summary>Repeater of a single character other than the one specified.</summary>
-        /// <remarks>Operand 0 is the character. Operand 1 is the repetition count.</remarks>
-        Notonerep = 1,
-
-        /// <summary>Repeater of a single character matching the specified set</summary>
-        /// <remarks>Operand 0 is index into the strings table of the character class description. Operand 1 is the repetition count.</remarks>
-        Setrep = 2,
-
-        /// <summary>Greedy loop of the specified character.</summary>
-        /// <remarks>Operand 0 is the character. Operand 1 is the max iteration count.</remarks>
-        Oneloop = 3,
-
-        /// <summary>Greedy loop of a single character other than the one specified.</summary>
-        /// <remarks>Operand 0 is the character. Operand 1 is the max iteration count.</remarks>
-        Notoneloop = 4,
-
-        /// <summary>Greedy loop of a single character matching the specified set</summary>
-        /// <remarks>Operand 0 is index into the strings table of the character class description. Operand 1 is the repetition count.</remarks>
-        Setloop = 5,
-
-        /// <summary>Lazy loop of the specified character.</summary>
-        /// <remarks>Operand 0 is the character. Operand 1 is the max iteration count.</remarks>
-        Onelazy = 6,
-
-        /// <summary>Lazy loop of a single character other than the one specified.</summary>
-        /// <remarks>Operand 0 is the character. Operand 1 is the max iteration count.</remarks>
-        Notonelazy = 7,
-
-        /// <summary>Lazy loop of a single character matching the specified set</summary>
-        /// <remarks>Operand 0 is index into the strings table of the character class description. Operand 1 is the repetition count.</remarks>
-        Setlazy = 8,
 
         /// <summary>Single specified character.</summary>
         /// <remarks>Operand 0 is the character.</remarks>
@@ -66,7 +30,7 @@ namespace System.Text.RegularExpressions
 
         /// <summary>Single character other than the one specified.</summary>
         /// <remarks>Operand 0 is the character.</remarks>
-        Notone = 10,
+        NotOne = 10,
 
         /// <summary>Single character matching the specified set.</summary>
         /// <remarks>Operand 0 is index into the strings table of the character class description.</remarks>
@@ -75,6 +39,54 @@ namespace System.Text.RegularExpressions
         /// <summary>Multiple characters in sequence.</summary>
         /// <remarks>Operand 0 is index into the strings table for the string of characters.</remarks>
         Multi = 12,
+
+        /// <summary>Repeater of the specified character.</summary>
+        /// <remarks>Operand 0 is the character. Operand 1 is the repetition count.</remarks>
+        RepeatOne = 0,
+
+        /// <summary>Repeater of a single character other than the one specified.</summary>
+        /// <remarks>Operand 0 is the character. Operand 1 is the repetition count.</remarks>
+        RepeatNotOne = 1,
+
+        /// <summary>Repeater of a single character matching the specified set</summary>
+        /// <remarks>Operand 0 is index into the strings table of the character class description. Operand 1 is the repetition count.</remarks>
+        RepeatSet = 2,
+
+        /// <summary>Greedy loop of the specified character.</summary>
+        /// <remarks>Operand 0 is the character. Operand 1 is the max iteration count.</remarks>
+        LoopOne = 3,
+
+        /// <summary>Greedy loop of a single character other than the one specified.</summary>
+        /// <remarks>Operand 0 is the character. Operand 1 is the max iteration count.</remarks>
+        LoopNotOne = 4,
+
+        /// <summary>Greedy loop of a single character matching the specified set</summary>
+        /// <remarks>Operand 0 is index into the strings table of the character class description. Operand 1 is the repetition count.</remarks>
+        LoopSet = 5,
+
+        /// <summary>Lazy loop of the specified character.</summary>
+        /// <remarks>Operand 0 is the character. Operand 1 is the max iteration count.</remarks>
+        LazyLoopOne = 6,
+
+        /// <summary>Lazy loop of a single character other than the one specified.</summary>
+        /// <remarks>Operand 0 is the character. Operand 1 is the max iteration count.</remarks>
+        LazyLoopNotOne = 7,
+
+        /// <summary>Lazy loop of a single character matching the specified set</summary>
+        /// <remarks>Operand 0 is index into the strings table of the character class description. Operand 1 is the repetition count.</remarks>
+        LazyLoopSet = 8,
+
+        /// <summary>AtomicGroup loop of the specified character.</summary>
+        /// <remarks>Operand 0 is the character. Operand 1 is the max iteration count.</remarks>
+        AtomicLoopOne = 43,
+
+        /// <summary>AtomicGroup loop of a single character other than the one specified.</summary>
+        /// <remarks>Operand 0 is the character. Operand 1 is the max iteration count.</remarks>
+        AtomicLoopNotOne = 44,
+
+        /// <summary>AtomicGroup loop of a single character matching the specified set</summary>
+        /// <remarks>Operand 0 is index into the strings table of the character class description. Operand 1 is the repetition count.</remarks>
+        AtomicLoopSet = 45,
 
         /// <summary>Backreference to a capture group.</summary>
         /// <remarks>Operand 0 is the capture group number.</remarks>
@@ -102,16 +114,6 @@ namespace System.Text.RegularExpressions
         ECMABoundary = 41,
         /// <summary>Word non-boundary (\B with RegexOptions.ECMAScript).</summary>
         NonECMABoundary = 42,
-
-        /// <summary>Atomic loop of the specified character.</summary>
-        /// <remarks>Operand 0 is the character. Operand 1 is the max iteration count.</remarks>
-        Oneloopatomic = 43,
-        /// <summary>Atomic loop of a single character other than the one specified.</summary>
-        /// <remarks>Operand 0 is the character. Operand 1 is the max iteration count.</remarks>
-        Notoneloopatomic = 44,
-        /// <summary>Atomic loop of a single character matching the specified set</summary>
-        /// <remarks>Operand 0 is index into the strings table of the character class description. Operand 1 is the repetition count.</remarks>
-        Setloopatomic = 45,
 
         /// <summary>Updates the bumpalong position to the current position.</summary>
         UpdateBumpalong = 46,

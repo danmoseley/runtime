@@ -8,11 +8,11 @@ namespace System.Text.RegularExpressions.Symbolic
     {
         /// <summary>An empty node that matches a zero-width input (e.g. <see cref="RegexNodeKind.Empty"/>).</summary>
         Epsilon,
-        /// <summary>A node that matches a single character (i.e. <see cref="RegexNodeKind.One"/>, <see cref="RegexNodeKind.Notone"/>, or <see cref="RegexNodeKind.Set"/>).</summary>
+        /// <summary>A node that matches a single character (i.e. <see cref="RegexNodeKind.One"/>, <see cref="RegexNodeKind.NotOne"/>, or <see cref="RegexNodeKind.Set"/>).</summary>
         Singleton,
         /// <summary>A node that matches a sequence of nodes (i.e. <see cref="RegexNodeKind.Concatenate"/>).</summary>
         Concat,
-        /// <summary>A node that matches a loop (e.g. <see cref="RegexNodeKind.Loop"/>, <see cref="RegexNodeKind.Lazyloop"/>, <see cref="RegexNodeKind.Setloop"/>, etc.).</summary>
+        /// <summary>A node that matches a loop (e.g. <see cref="RegexNodeKind.Loop"/>, <see cref="RegexNodeKind.LazyLoop"/>, <see cref="RegexNodeKind.LoopSet"/>, etc.).</summary>
         Loop,
         /// <summary>A node that matches if any of its nodes match and that matches them in a fixed order that mirrors how the backtracking engines operate (e.g. <see cref="RegexNodeKind.Alternate"/>).</summary>
         Alternate,

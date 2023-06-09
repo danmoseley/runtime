@@ -436,7 +436,7 @@ namespace System.Text.RegularExpressions.Tests
                 yield return (enUS, @"(cat)(\c[*)(dog)", "asdlkcat\u001bdogiwod", RegexOptions.None, new string[] { "cat\u001bdog", "cat", "\u001b", "dog" });
             }
 
-            // Atomic Zero-Width Assertions \A \G ^ \Z \z \b \B
+            // AtomicGroup Zero-Width Assertions \A \G ^ \Z \z \b \B
             //\A
             yield return (enUS, @"\Acat\s+dog", "cat   \n\n\n   dog", RegexOptions.None, new string[] { "cat   \n\n\n   dog" });
             yield return (enUS, @"\Acat\s+dog", "cat   \n\n\n   dog", RegexOptions.Multiline, new string[] { "cat   \n\n\n   dog" });
@@ -753,7 +753,7 @@ namespace System.Text.RegularExpressions.Tests
             yield return (enUS, @"(cat){5,dog}?", "cat{5,dog}?", RegexOptions.None, new string[] { "cat{5,dog}", "cat" });
             yield return (enUS, @"(cat){cat,dog}?", "cat{cat,dog}?", RegexOptions.None, new string[] { "cat{cat,dog}", "cat" });
 
-            // Atomic subexpressions
+            // AtomicGroup subexpressions
             // Implicitly upgrading (or not) oneloop to be atomic
             yield return (enUS, @"a*b", "aaab", RegexOptions.None, new string[] { "aaab" });
             yield return (enUS, @"a*b+", "aaab", RegexOptions.None, new string[] { "aaab" });

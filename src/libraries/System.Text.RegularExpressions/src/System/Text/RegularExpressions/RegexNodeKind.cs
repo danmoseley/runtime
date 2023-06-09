@@ -15,9 +15,11 @@ namespace System.Text.RegularExpressions
         /// <summary>A specific character, e.g. `a`.</summary>
         /// <remarks>The character is specified in <see cref="RegexNode.Ch"/>.</remarks>
         One = RegexOpcode.One,
+
         /// <summary>Anything other than a specific character, e.g. `.` when not in <see cref="RegexOptions.Singleline"/> mode, or `[^a]`.</summary>
         /// <remarks>The character is specified in <see cref="RegexNode.Ch"/>.</remarks>
-        Notone = RegexOpcode.Notone,
+        NotOne = RegexOpcode.NotOne,
+
         /// <summary>A character class / set, e.g. `[a-z1-9]` or `\w`.</summary>
         /// <remarks>The <see cref="RegexCharClass"/> set string is specified in <see cref="RegexNode.Str"/>.</remarks>
         Set = RegexOpcode.Set,
@@ -31,47 +33,53 @@ namespace System.Text.RegularExpressions
         /// The character is specified in <see cref="RegexNode.Ch"/>, the minimum number of iterations in <see cref="RegexNode.M"/>, and the maximum number of iterations in <see cref="RegexNode.N"/>.
         /// This is purely a representational optimization, equivalent to a <see cref="Loop"/> wrapped around a <see cref="One"/>.
         /// </remarks>
-        Oneloop = RegexOpcode.Oneloop,
+        LoopOne = RegexOpcode.LoopOne,
+
         /// <summary>A loop around anything other than a specific character, e.g. `.*` when not in <see cref="RegexOptions.Singleline"/> mode, or `[^a]*`.</summary>
         /// <remarks>The character is specified in <see cref="RegexNode.Ch"/>, the minimum number of iterations in <see cref="RegexNode.M"/>, and the maximum number of iterations in <see cref="RegexNode.N"/>.</remarks>
-        /// This is purely a representational optimization, equivalent to a <see cref="Loop"/> wrapped around a <see cref="Notone"/>.
-        Notoneloop = RegexOpcode.Notoneloop,
+        /// This is purely a representational optimization, equivalent to a <see cref="Loop"/> wrapped around a <see cref="NotOne"/>.
+        LoopNotOne = RegexOpcode.LoopNotOne,
+
         /// <summary>A loop around a character class / set, e.g. `[a-z1-9]*` or `\w*`.</summary>
         /// <remarks>The <see cref="RegexCharClass"/> set string is specified in <see cref="RegexNode.Str"/>, the minimum number of iterations in <see cref="RegexNode.M"/>, and the maximum number of iterations in <see cref="RegexNode.N"/>.</remarks>
         /// This is purely a representational optimization, equivalent to a <see cref="Loop"/> wrapped around a <see cref="Set"/>.
-        Setloop = RegexOpcode.Setloop,
+        LoopSet = RegexOpcode.LoopSet,
 
         /// <summary>A lazy loop around a specific character, e.g. `a*?`.</summary>
         /// <remarks>The character is specified in <see cref="RegexNode.Ch"/>, the minimum number of iterations in <see cref="RegexNode.M"/>, and the maximum number of iterations in <see cref="RegexNode.N"/>.</remarks>
-        /// This is purely a representational optimization, equivalent to a <see cref="Lazyloop"/> wrapped around a <see cref="One"/>.
-        Onelazy = RegexOpcode.Onelazy,
+        /// This is purely a representational optimization, equivalent to a <see cref="LazyLoop"/> wrapped around a <see cref="One"/>.
+        LazyLoopOne = RegexOpcode.LazyLoopOne,
+
         /// <summary>A lazy loop around anything other than a specific character, e.g. `.*?` when not in <see cref="RegexOptions.Singleline"/> mode, or `[^a]*?`.</summary>
         /// <remarks>The character is specified in <see cref="RegexNode.Ch"/>, the minimum number of iterations in <see cref="RegexNode.M"/>, and the maximum number of iterations in <see cref="RegexNode.N"/>.</remarks>
-        /// This is purely a representational optimization, equivalent to a <see cref="Lazyloop"/> wrapped around a <see cref="Notone"/>.
-        Notonelazy = RegexOpcode.Notonelazy,
+        /// This is purely a representational optimization, equivalent to a <see cref="LazyLoop"/> wrapped around a <see cref="NotOne"/>.
+        LazyLoopNotOne = RegexOpcode.LazyLoopNotOne,
+
         /// <summary>A lazy loop around a character class / set, e.g. `[a-z1-9]*?` or `\w?`.</summary>
         /// <remarks>The <see cref="RegexCharClass"/> set string is specified in <see cref="RegexNode.Str"/>, the minimum number of iterations in <see cref="RegexNode.M"/>, and the maximum number of iterations in <see cref="RegexNode.N"/>.</remarks>
-        /// This is purely a representational optimization, equivalent to a <see cref="Lazyloop"/> wrapped around a <see cref="Set"/>.
-        Setlazy = RegexOpcode.Setlazy,
+        /// This is purely a representational optimization, equivalent to a <see cref="LazyLoop"/> wrapped around a <see cref="Set"/>.
+        LazyLoopSet = RegexOpcode.LazyLoopSet,
 
         /// <summary>An atomic loop around a specific character, e.g. `(?> a*)`.</summary>
         /// <remarks>
         /// The character is specified in <see cref="RegexNode.Ch"/>, the minimum number of iterations in <see cref="RegexNode.M"/>, and the maximum number of iterations in <see cref="RegexNode.N"/>.
-        /// This is purely a representational optimization, equivalent to a <see cref="Atomic"/> wrapped around a <see cref="Oneloop"/>.
+        /// This is purely a representational optimization, equivalent to a <see cref="AtomicGroup"/> wrapped around a <see cref="LoopOne"/>.
         /// </remarks>
-        Oneloopatomic = RegexOpcode.Oneloopatomic,
+        AtomicLoopOne = RegexOpcode.AtomicLoopOne,
+
         /// <summary>An atomic loop around anything other than a specific character, e.g. `(?>.*)` when not in <see cref="RegexOptions.Singleline"/> mode.</summary>
         /// <remarks>
         /// The character is specified in <see cref="RegexNode.Ch"/>, the minimum number of iterations in <see cref="RegexNode.M"/>, and the maximum number of iterations in <see cref="RegexNode.N"/>.
-        /// This is purely a representational optimization, equivalent to a <see cref="Atomic"/> wrapped around a <see cref="Notoneloop"/>.
+        /// This is purely a representational optimization, equivalent to a <see cref="AtomicGroup"/> wrapped around a <see cref="LoopNotOne"/>.
         /// </remarks>
-        Notoneloopatomic = RegexOpcode.Notoneloopatomic,
+        AtomicLoopNotOne = RegexOpcode.AtomicLoopNotOne,
+
         /// <summary>An atomic loop around a character class / set, e.g. `(?>\d*)`.</summary>
         /// <remarks>
         /// The <see cref="RegexCharClass"/> set string is specified in <see cref="RegexNode.Str"/>, the minimum number of iterations in <see cref="RegexNode.M"/>, and the maximum number of iterations in <see cref="RegexNode.N"/>.
-        /// This is purely a representational optimization, equivalent to a <see cref="Atomic"/> wrapped around a <see cref="Setloop"/>.
+        /// This is purely a representational optimization, equivalent to a <see cref="AtomicGroup"/> wrapped around a <see cref="LoopSet"/>.
         /// </remarks>
-        Setloopatomic = RegexOpcode.Setloopatomic,
+        AtomicLoopSet = RegexOpcode.AtomicLoopSet,
 
         /// <summary>A backreference, e.g. `\1`.</summary>
         /// <remarks>The capture group number referenced is stored in <see cref="RegexNode.M"/>.</remarks>
@@ -115,6 +123,7 @@ namespace System.Text.RegularExpressions
         /// by that child, and if an alternation has no children, it can be replaced by <see cref="Nothing"/>.
         /// </remarks>
         Alternate = 24,
+
         /// <summary>A sequence / concatenation of nodes, e.g. a[bc].</summary>
         /// <remarks>
         /// Each child represents one node in the sequence, in lexical order.  A valid concatenation contains at
@@ -129,34 +138,38 @@ namespace System.Text.RegularExpressions
         /// and the maximum number of iterations is in <see cref="RegexNode.N"/>.
         /// </remarks>
         Loop = 26,
+
         /// <summary>A lazy loop around an arbitrary <see cref="RegexNode"/>, e.g. `(ab|cd)*?`.</summary>
         /// <remarks>
         /// One and only one child, the expression in the loop. The minimum number of iterations is in <see cref="RegexNode.M"/>,
         /// and the maximum number of iterations is in <see cref="RegexNode.N"/>.
         /// </remarks>
-        Lazyloop = 27,
+        LazyLoop = 27,
 
         /// <summary>A capture group, e.g. `(\w*)`.</summary>
         /// <remarks>
         /// One and only one child, the expression in the capture. <see cref="RegexNode.M"/> is the number of the capture, and if a balancing
         /// group, <see cref="RegexNode.N"/> is the uncapture.
         /// </remarks>
-        Capture = 28,
+        CaptureGroup = 28,
+
         /// <summary>A non-capturing group, e.g. `(?:ab|cd)`.</summary>
         /// <remarks>
         /// One and only one child, the expression in the group. Groups are irrelevant after parsing and can be replaced entirely by their child.
         /// These should not be in a valid tree returned from the parsing / reduction phases of processing.
         /// </remarks>
         Group = 29,
+
         /// <summary>An atomic group, e.g. `(?>ab|cd)`.</summary>
         /// <remarks>One and only one child, the expression in the group.</remarks>
-        Atomic = 32,
+        AtomicGroup = 32,
 
         /// <summary>
         /// A positive lookaround assertion: lookahead if <see cref="RegexOptions.RightToLeft"/> is not set and lookbehind if
         /// <see cref="RegexOptions.RightToLeft"/> is set, e.g. `(?=abc)` or `(?&lt;=abc)`.</summary>
         /// <remarks>One and only one child, the expression in the assertion.</remarks>
         PositiveLookaround = 30,
+
         /// <summary>
         /// A negative lookaround assertion: lookahead if <see cref="RegexOptions.RightToLeft"/> is not set and lookbehind if
         /// <see cref="RegexOptions.RightToLeft"/> is set, e.g. `(?!abc)` or `(?&lt;!abc)`.</summary>
@@ -169,6 +182,7 @@ namespace System.Text.RegularExpressions
         /// The referenced capture group number is stored in <see cref="RegexNode.M"/>.
         /// </remarks>
         BackreferenceConditional = 33,
+
         /// <summary>An expression conditional, e.g. `(?(\d{3})123456|abc)`.</summary>
         /// <remarks>
         /// Three children. The first is the expression to evaluate as a positive lookahead assertion, the second is

@@ -149,12 +149,12 @@ namespace System.Text.RegularExpressions.Tests
         [InlineData("[^a][^a]+?", "[^a]{2,}?")]
         [InlineData("[^a][^a]??", "[^a]{1,2}?")]
         [InlineData("[^a][^a]{1,3}?", "[^a]{2,4}?")]
-        // Notone and atomic notone loop
+        // NotOne and atomic notone loop
         [InlineData("[^a](?>[^a]*)", "(?>[^a]+)")]
         [InlineData("[^a](?>[^a]+)", "(?>[^a]{2,})")]
         [InlineData("[^a](?>[^a]?)", "(?>[^a]{1,2})")]
         [InlineData("[^a](?>[^a]{1,3})", "(?>[^a]{2,4})")]
-        // Notone and notone
+        // NotOne and notone
         [InlineData("[^a][^a]", "[^a]{2}")]
         // Two greedy set loops
         [InlineData("[0-9]*[0-9]*", "[0-9]*")]

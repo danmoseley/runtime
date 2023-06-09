@@ -27,7 +27,7 @@ namespace System.Text.RegularExpressions
         public string? Str { get; private set; }
 
         /// <summary>The character associated with the node.</summary>
-        /// <remarks>For a <see cref="IsOneFamily"/> or <see cref="IsNotoneFamily"/> node, the character from the expression.</remarks>
+        /// <remarks>For a <see cref="IsOneFamily"/> or <see cref="IsNotOneFamily"/> node, the character from the expression.</remarks>
         public char Ch { get; private set; }
 
         /// <summary>The minimum number of iterations for a loop, or the capture group number for a capture or backreference.</summary>
@@ -140,17 +140,17 @@ namespace System.Text.RegularExpressions
         {
             switch (Kind)
             {
-                case RegexNodeKind.Oneloop or RegexNodeKind.Notoneloop or RegexNodeKind.Setloop:
+                case RegexNodeKind.LoopOne or RegexNodeKind.LoopNotOne or RegexNodeKind.LoopSet:
                     // For loops, we simply change the Type to the atomic variant.
-                    // Atomic greedy loops should consume as many values as they can.
-                    Kind += RegexNodeKind.Oneloopatomic - RegexNodeKind.Oneloop;
+                    // AtomicGroup greedy loops should consume as many values as they can.
+                    Kind += RegexNodeKind.AtomicLoopOne - RegexNodeKind.LoopOne;
                     break;
 
-                case RegexNodeKind.Onelazy or RegexNodeKind.Notonelazy or RegexNodeKind.Setlazy:
+                case RegexNodeKind.LazyLoopOne or RegexNodeKind.LazyLoopNotOne or RegexNodeKind.LazyLoopSet:
                     // For lazy, we not only change the Type, we also lower the max number of iterations
                     // to the minimum number of iterations, creating a repeater, as they should end up
                     // matching as little as possible.
-                    Kind += RegexNodeKind.Oneloopatomic - RegexNodeKind.Onelazy;
+                    Kind += RegexNodeKind.AtomicLoopOne - RegexNodeKind.LazyLoopOne;
                     N = M;
                     if (N == 0)
                     {
@@ -160,7 +160,7 @@ namespace System.Text.RegularExpressions
                         Str = null;
                         Ch = '\0';
                     }
-                    else if (Kind == RegexNodeKind.Oneloopatomic && N is >= 2 and <= MultiVsRepeaterLimit)
+                    else if (Kind == RegexNodeKind.AtomicLoopOne && N is >= 2 and <= MultiVsRepeaterLimit)
                     {
                         // If this is now a One repeater with a small enough length,
                         // make it a Multi instead, as they're better optimized down the line.
@@ -182,7 +182,7 @@ namespace System.Text.RegularExpressions
         [Conditional("DEBUG")]
         private void ValidateFinalTreeInvariants()
         {
-            Debug.Assert(Kind == RegexNodeKind.Capture, "Every generated tree should begin with a capture node");
+            Debug.Assert(Kind == RegexNodeKind.CaptureGroup, "Every generated tree should begin with a capture node");
 
             var toExamine = new Stack<RegexNode>();
             toExamine.Push(this);
@@ -222,27 +222,27 @@ namespace System.Text.RegularExpressions
                     case RegexNodeKind.NonBoundary:
                     case RegexNodeKind.NonECMABoundary:
                     case RegexNodeKind.Nothing:
-                    case RegexNodeKind.Notone:
-                    case RegexNodeKind.Notonelazy:
-                    case RegexNodeKind.Notoneloop:
-                    case RegexNodeKind.Notoneloopatomic:
+                    case RegexNodeKind.NotOne:
+                    case RegexNodeKind.LazyLoopNotOne:
+                    case RegexNodeKind.LoopNotOne:
+                    case RegexNodeKind.AtomicLoopNotOne:
                     case RegexNodeKind.One:
-                    case RegexNodeKind.Onelazy:
-                    case RegexNodeKind.Oneloop:
-                    case RegexNodeKind.Oneloopatomic:
+                    case RegexNodeKind.LazyLoopOne:
+                    case RegexNodeKind.LoopOne:
+                    case RegexNodeKind.AtomicLoopOne:
                     case RegexNodeKind.Backreference:
                     case RegexNodeKind.Set:
-                    case RegexNodeKind.Setlazy:
-                    case RegexNodeKind.Setloop:
-                    case RegexNodeKind.Setloopatomic:
+                    case RegexNodeKind.LazyLoopSet:
+                    case RegexNodeKind.LoopSet:
+                    case RegexNodeKind.AtomicLoopSet:
                     case RegexNodeKind.Start:
                     case RegexNodeKind.UpdateBumpalong:
                         Debug.Assert(childCount == 0, $"Expected zero children for {node.Kind}, got {childCount}.");
                         break;
 
-                    case RegexNodeKind.Atomic:
-                    case RegexNodeKind.Capture:
-                    case RegexNodeKind.Lazyloop:
+                    case RegexNodeKind.AtomicGroup:
+                    case RegexNodeKind.CaptureGroup:
+                    case RegexNodeKind.LazyLoop:
                     case RegexNodeKind.Loop:
                     case RegexNodeKind.NegativeLookaround:
                     case RegexNodeKind.PositiveLookaround:
@@ -276,9 +276,9 @@ namespace System.Text.RegularExpressions
                         break;
 
                     case RegexNodeKind.Set:
-                    case RegexNodeKind.Setloop:
-                    case RegexNodeKind.Setloopatomic:
-                    case RegexNodeKind.Setlazy:
+                    case RegexNodeKind.LoopSet:
+                    case RegexNodeKind.AtomicLoopSet:
+                    case RegexNodeKind.LazyLoopSet:
                         Debug.Assert(!string.IsNullOrEmpty(node.Str), $"Expected non-null, non-empty string for {node.Kind}.");
                         break;
 
@@ -311,7 +311,7 @@ namespace System.Text.RegularExpressions
         internal RegexNode FinalOptimize()
         {
             RegexNode rootNode = this;
-            Debug.Assert(rootNode.Kind == RegexNodeKind.Capture);
+            Debug.Assert(rootNode.Kind == RegexNodeKind.CaptureGroup);
             Debug.Assert(rootNode.Parent is null);
             Debug.Assert(rootNode.ChildCount() == 1);
 
@@ -321,8 +321,8 @@ namespace System.Text.RegularExpressions
             if ((Options & (RegexOptions.RightToLeft | RegexOptions.NonBacktracking)) == 0)
             {
                 // Optimization: eliminate backtracking for loops.
-                // For any single-character loop (Oneloop, Notoneloop, Setloop), see if we can automatically convert
-                // that into its atomic counterpart (Oneloopatomic, Notoneloopatomic, Setloopatomic) based on what
+                // For any single-character loop (LoopOne, LoopNotOne, LoopSet), see if we can automatically convert
+                // that into its atomic counterpart (AtomicLoopOne, AtomicLoopNotOne, AtomicLoopSet) based on what
                 // comes after it in the expression tree.
                 rootNode.FindAndMakeLoopsAtomic();
 
@@ -354,7 +354,7 @@ namespace System.Text.RegularExpressions
                     {
                         switch (node.Kind)
                         {
-                            case RegexNodeKind.Atomic:
+                            case RegexNodeKind.AtomicGroup:
                                 node = node.Child(0);
                                 continue;
 
@@ -363,8 +363,8 @@ namespace System.Text.RegularExpressions
                                 node = node.Child(0);
                                 continue;
 
-                            case RegexNodeKind.Oneloop or RegexNodeKind.Oneloopatomic or RegexNodeKind.Notoneloop or RegexNodeKind.Notoneloopatomic or RegexNodeKind.Setloop or RegexNodeKind.Setloopatomic when node.N == int.MaxValue:
-                            case RegexNodeKind.Onelazy or RegexNodeKind.Notonelazy or RegexNodeKind.Setlazy when node.N == int.MaxValue && !atomicByAncestry:
+                            case RegexNodeKind.LoopOne or RegexNodeKind.AtomicLoopOne or RegexNodeKind.LoopNotOne or RegexNodeKind.AtomicLoopNotOne or RegexNodeKind.LoopSet or RegexNodeKind.AtomicLoopSet when node.N == int.MaxValue:
+                            case RegexNodeKind.LazyLoopOne or RegexNodeKind.LazyLoopNotOne or RegexNodeKind.LazyLoopSet when node.N == int.MaxValue && !atomicByAncestry:
                                 if (node.Parent is { Kind: RegexNodeKind.Concatenate } parent)
                                 {
                                     parent.InsertChild(1, new RegexNode(RegexNodeKind.UpdateBumpalong, node.Options));
@@ -388,7 +388,7 @@ namespace System.Text.RegularExpressions
         /// <remarks>
         /// The correctness of this optimization depends on nothing being able to backtrack into
         /// the provided node.  That means it must be at the root of the overall expression, or
-        /// it must be an Atomic node that nothing will backtrack into by the very nature of Atomic.
+        /// it must be an AtomicGroup node that nothing will backtrack into by the very nature of AtomicGroup.
         /// </remarks>
         private void EliminateEndingBacktracking()
         {
@@ -407,35 +407,35 @@ namespace System.Text.RegularExpressions
             {
                 switch (node.Kind)
                 {
-                    // {One/Notone/Set}loops can be upgraded to {One/Notone/Set}loopatomic nodes, e.g. [abc]* => (?>[abc]*).
-                    // And {One/Notone/Set}lazys can similarly be upgraded to be atomic, which really makes them into repeaters
+                    // {One/NotOne/Set}loops can be upgraded to {One/NotOne/Set}loopatomic nodes, e.g. [abc]* => (?>[abc]*).
+                    // And {One/NotOne/Set}lazys can similarly be upgraded to be atomic, which really makes them into repeaters
                     // or even empty nodes.
-                    case RegexNodeKind.Oneloop or RegexNodeKind.Notoneloop or RegexNodeKind.Setloop:
-                    case RegexNodeKind.Onelazy or RegexNodeKind.Notonelazy or RegexNodeKind.Setlazy:
+                    case RegexNodeKind.LoopOne or RegexNodeKind.LoopNotOne or RegexNodeKind.LoopSet:
+                    case RegexNodeKind.LazyLoopOne or RegexNodeKind.LazyLoopNotOne or RegexNodeKind.LazyLoopSet:
                         node.MakeLoopAtomic();
                         break;
 
                     // Just because a particular node is atomic doesn't mean all its descendants are.
                     // Process them as well. Lookarounds are implicitly atomic.
-                    case RegexNodeKind.Atomic:
+                    case RegexNodeKind.AtomicGroup:
                     case RegexNodeKind.PositiveLookaround:
                     case RegexNodeKind.NegativeLookaround:
                         node = node.Child(0);
                         continue;
 
-                    // For Capture and Concatenate, we just recur into their last child (only child in the case
-                    // of Capture).  However, if the child is an alternation or loop, we can also make the
-                    // node itself atomic by wrapping it in an Atomic node. Since we later check to see whether a
+                    // For CaptureGroup and Concatenate, we just recur into their last child (only child in the case
+                    // of CaptureGroup).  However, if the child is an alternation or loop, we can also make the
+                    // node itself atomic by wrapping it in an AtomicGroup node. Since we later check to see whether a
                     // node is atomic based on its parent or grandparent, we don't bother wrapping such a node in
-                    // an Atomic one if its grandparent is already Atomic.
+                    // an AtomicGroup one if its grandparent is already AtomicGroup.
                     // e.g. [xyz](?:abc|def) => [xyz](?>abc|def)
-                    case RegexNodeKind.Capture:
+                    case RegexNodeKind.CaptureGroup:
                     case RegexNodeKind.Concatenate:
                         RegexNode existingChild = node.Child(node.ChildCount() - 1);
-                        if ((existingChild.Kind is RegexNodeKind.Alternate or RegexNodeKind.BackreferenceConditional or RegexNodeKind.ExpressionConditional or RegexNodeKind.Loop or RegexNodeKind.Lazyloop) &&
-                            (node.Parent is null || node.Parent.Kind != RegexNodeKind.Atomic)) // validate grandparent isn't atomic
+                        if ((existingChild.Kind is RegexNodeKind.Alternate or RegexNodeKind.BackreferenceConditional or RegexNodeKind.ExpressionConditional or RegexNodeKind.Loop or RegexNodeKind.LazyLoop) &&
+                            (node.Parent is null || node.Parent.Kind != RegexNodeKind.AtomicGroup)) // validate grandparent isn't atomic
                         {
-                            var atomic = new RegexNode(RegexNodeKind.Atomic, existingChild.Options);
+                            var atomic = new RegexNode(RegexNodeKind.AtomicGroup, existingChild.Options);
                             atomic.AddChild(existingChild);
                             node.ReplaceChild(node.ChildCount() - 1, atomic);
                         }
@@ -470,7 +470,7 @@ namespace System.Text.RegularExpressions
                     // repeater, which results in better code generation.
                     // e.g. (?:abc*)* => (?:ab(?>c*))*
                     // e.g. (abc*?)+? => (ab){1}
-                    case RegexNodeKind.Lazyloop:
+                    case RegexNodeKind.LazyLoop:
                         node.N = node.M;
                         goto case RegexNodeKind.Loop;
                     case RegexNodeKind.Loop:
@@ -519,12 +519,12 @@ namespace System.Text.RegularExpressions
             return Kind switch
             {
                 RegexNodeKind.Alternate => ReduceAlternation(),
-                RegexNodeKind.Atomic => ReduceAtomic(),
+                RegexNodeKind.AtomicGroup => ReduceAtomic(),
                 RegexNodeKind.Concatenate => ReduceConcatenation(),
                 RegexNodeKind.Group => ReduceGroup(),
-                RegexNodeKind.Loop or RegexNodeKind.Lazyloop => ReduceLoops(),
+                RegexNodeKind.Loop or RegexNodeKind.LazyLoop => ReduceLoops(),
                 RegexNodeKind.PositiveLookaround or RegexNodeKind.NegativeLookaround => ReduceLookaround(),
-                RegexNodeKind.Set or RegexNodeKind.Setloop or RegexNodeKind.Setloopatomic or RegexNodeKind.Setlazy => ReduceSet(),
+                RegexNodeKind.Set or RegexNodeKind.LoopSet or RegexNodeKind.AtomicLoopSet or RegexNodeKind.LazyLoopSet => ReduceSet(),
                 RegexNodeKind.ExpressionConditional => ReduceExpressionConditional(),
                 RegexNodeKind.BackreferenceConditional => ReduceBackreferenceConditional(),
                 _ => this,
@@ -584,12 +584,12 @@ namespace System.Text.RegularExpressions
                 return this;
             }
 
-            Debug.Assert(Kind == RegexNodeKind.Atomic);
+            Debug.Assert(Kind == RegexNodeKind.AtomicGroup);
             Debug.Assert(ChildCount() == 1);
 
             RegexNode atomic = this;
             RegexNode child = Child(0);
-            while (child.Kind == RegexNodeKind.Atomic)
+            while (child.Kind == RegexNodeKind.AtomicGroup)
             {
                 atomic = child;
                 child = atomic.Child(0);
@@ -597,26 +597,26 @@ namespace System.Text.RegularExpressions
 
             switch (child.Kind)
             {
-                // If the child is empty/nothing, there's nothing to be made atomic so the Atomic
+                // If the child is empty/nothing, there's nothing to be made atomic so the AtomicGroup
                 // node can simply be removed.
                 case RegexNodeKind.Empty:
                 case RegexNodeKind.Nothing:
                     return child;
 
                 // If the child is already atomic, we can just remove the atomic node.
-                case RegexNodeKind.Oneloopatomic:
-                case RegexNodeKind.Notoneloopatomic:
-                case RegexNodeKind.Setloopatomic:
+                case RegexNodeKind.AtomicLoopOne:
+                case RegexNodeKind.AtomicLoopNotOne:
+                case RegexNodeKind.AtomicLoopSet:
                     return child;
 
                 // If an atomic subexpression contains only a {one/notone/set}{loop/lazy},
                 // change it to be an {one/notone/set}loopatomic and remove the atomic node.
-                case RegexNodeKind.Oneloop:
-                case RegexNodeKind.Notoneloop:
-                case RegexNodeKind.Setloop:
-                case RegexNodeKind.Onelazy:
-                case RegexNodeKind.Notonelazy:
-                case RegexNodeKind.Setlazy:
+                case RegexNodeKind.LoopOne:
+                case RegexNodeKind.LoopNotOne:
+                case RegexNodeKind.LoopSet:
+                case RegexNodeKind.LazyLoopOne:
+                case RegexNodeKind.LazyLoopNotOne:
+                case RegexNodeKind.LazyLoopSet:
                     child.MakeLoopAtomic();
                     return child;
 
@@ -746,7 +746,7 @@ namespace System.Text.RegularExpressions
         /// </remarks>
         private RegexNode ReduceLoops()
         {
-            Debug.Assert(Kind is RegexNodeKind.Loop or RegexNodeKind.Lazyloop);
+            Debug.Assert(Kind is RegexNodeKind.Loop or RegexNodeKind.LazyLoop);
 
             RegexNode u = this;
             RegexNodeKind kind = Kind;
@@ -766,23 +766,23 @@ namespace System.Text.RegularExpressions
                     {
                         switch (child.Kind)
                         {
-                            case RegexNodeKind.Oneloop:
-                            case RegexNodeKind.Oneloopatomic:
-                            case RegexNodeKind.Notoneloop:
-                            case RegexNodeKind.Notoneloopatomic:
-                            case RegexNodeKind.Setloop:
-                            case RegexNodeKind.Setloopatomic:
+                            case RegexNodeKind.LoopOne:
+                            case RegexNodeKind.AtomicLoopOne:
+                            case RegexNodeKind.LoopNotOne:
+                            case RegexNodeKind.AtomicLoopNotOne:
+                            case RegexNodeKind.LoopSet:
+                            case RegexNodeKind.AtomicLoopSet:
                                 valid = true;
                                 break;
                         }
                     }
-                    else // type == Lazyloop
+                    else // type == LazyLoop
                     {
                         switch (child.Kind)
                         {
-                            case RegexNodeKind.Onelazy:
-                            case RegexNodeKind.Notonelazy:
-                            case RegexNodeKind.Setlazy:
+                            case RegexNodeKind.LazyLoopOne:
+                            case RegexNodeKind.LazyLoopNotOne:
+                            case RegexNodeKind.LazyLoopSet:
                                 valid = true;
                                 break;
                         }
@@ -819,8 +819,8 @@ namespace System.Text.RegularExpressions
                 return new RegexNode(RegexNodeKind.Nothing, Options);
             }
 
-            // If the Loop or Lazyloop now only has one child node and its a Set, One, or Notone,
-            // reduce to just Setloop/lazy, Oneloop/lazy, or Notoneloop/lazy.  The parser will
+            // If the Loop or LazyLoop now only has one child node and its a Set, One, or NotOne,
+            // reduce to just LoopSet/lazy, LoopOne/lazy, or LoopNotOne/lazy.  The parser will
             // generally have only produced the latter, but other reductions could have exposed
             // this.
             if (u.ChildCount() == 1)
@@ -829,9 +829,9 @@ namespace System.Text.RegularExpressions
                 switch (child.Kind)
                 {
                     case RegexNodeKind.One:
-                    case RegexNodeKind.Notone:
+                    case RegexNodeKind.NotOne:
                     case RegexNodeKind.Set:
-                        child.MakeRep(u.Kind == RegexNodeKind.Lazyloop ? RegexNodeKind.Onelazy : RegexNodeKind.Oneloop, u.M, u.N);
+                        child.MakeRep(u.Kind == RegexNodeKind.LazyLoop ? RegexNodeKind.LazyLoopOne : RegexNodeKind.LoopOne, u.M, u.N);
                         u = child;
                         break;
                 }
@@ -855,7 +855,7 @@ namespace System.Text.RegularExpressions
         private RegexNode ReduceSet()
         {
             // Extract empty-set, one, and not-one case as special
-            Debug.Assert(Kind is RegexNodeKind.Set or RegexNodeKind.Setloop or RegexNodeKind.Setloopatomic or RegexNodeKind.Setlazy);
+            Debug.Assert(Kind is RegexNodeKind.Set or RegexNodeKind.LoopSet or RegexNodeKind.AtomicLoopSet or RegexNodeKind.LazyLoopSet);
             Debug.Assert(!string.IsNullOrEmpty(Str));
 
             if (RegexCharClass.IsEmpty(Str))
@@ -869,19 +869,19 @@ namespace System.Text.RegularExpressions
                 Str = null;
                 Kind =
                     Kind == RegexNodeKind.Set ? RegexNodeKind.One :
-                    Kind == RegexNodeKind.Setloop ? RegexNodeKind.Oneloop :
-                    Kind == RegexNodeKind.Setloopatomic ? RegexNodeKind.Oneloopatomic :
-                    RegexNodeKind.Onelazy;
+                    Kind == RegexNodeKind.LoopSet ? RegexNodeKind.LoopOne :
+                    Kind == RegexNodeKind.AtomicLoopSet ? RegexNodeKind.AtomicLoopOne :
+                    RegexNodeKind.LazyLoopOne;
             }
             else if (RegexCharClass.IsSingletonInverse(Str))
             {
                 Ch = RegexCharClass.SingletonChar(Str);
                 Str = null;
                 Kind =
-                    Kind == RegexNodeKind.Set ? RegexNodeKind.Notone :
-                    Kind == RegexNodeKind.Setloop ? RegexNodeKind.Notoneloop :
-                    Kind == RegexNodeKind.Setloopatomic ? RegexNodeKind.Notoneloopatomic :
-                    RegexNodeKind.Notonelazy;
+                    Kind == RegexNodeKind.Set ? RegexNodeKind.NotOne :
+                    Kind == RegexNodeKind.LoopSet ? RegexNodeKind.LoopNotOne :
+                    Kind == RegexNodeKind.AtomicLoopSet ? RegexNodeKind.AtomicLoopNotOne :
+                    RegexNodeKind.LazyLoopNotOne;
             }
 
             // Normalize some well-known sets
@@ -922,7 +922,7 @@ namespace System.Text.RegularExpressions
                         node = ExtractCommonPrefixText(node);
                         if (node.Kind == RegexNodeKind.Alternate)
                         {
-                            node = ExtractCommonPrefixOneNotoneSet(node);
+                            node = ExtractCommonPrefixOneNotOneSet(node);
                             if (node.Kind == RegexNodeKind.Alternate)
                             {
                                 node = RemoveRedundantEmptiesAndNothings(node);
@@ -1054,7 +1054,7 @@ namespace System.Text.RegularExpressions
             // This function optimizes out prefix nodes from alternation branches that are
             // the same across multiple contiguous branches.
             // e.g. \w12|\d34|\d56|\w78|\w90 => \w12|\d(?:34|56)|\w(?:78|90)
-            static RegexNode ExtractCommonPrefixOneNotoneSet(RegexNode alternation)
+            static RegexNode ExtractCommonPrefixOneNotOneSet(RegexNode alternation)
             {
                 Debug.Assert(alternation.Kind == RegexNodeKind.Alternate);
                 Debug.Assert(alternation.Children is List<RegexNode> { Count: >= 2 });
@@ -1079,16 +1079,16 @@ namespace System.Text.RegularExpressions
                 {
                     Debug.Assert(children[startingIndex].Children is List<RegexNode> { Count: >= 2 });
 
-                    // Only handle the case where each branch begins with the same One, Notone, or Set (individual or loop).
+                    // Only handle the case where each branch begins with the same One, NotOne, or Set (individual or loop).
                     // Note that while we can do this for individual characters, fixed length loops, and atomic loops, doing
                     // it for non-atomic variable length loops could change behavior as each branch could otherwise have a
                     // different number of characters consumed by the loop based on what's after it.
                     RegexNode required = children[startingIndex].Child(0);
                     switch (required.Kind)
                     {
-                        case RegexNodeKind.One or RegexNodeKind.Notone or RegexNodeKind.Set:
-                        case RegexNodeKind.Oneloopatomic or RegexNodeKind.Notoneloopatomic or RegexNodeKind.Setloopatomic:
-                        case RegexNodeKind.Oneloop or RegexNodeKind.Notoneloop or RegexNodeKind.Setloop or RegexNodeKind.Onelazy or RegexNodeKind.Notonelazy or RegexNodeKind.Setlazy when required.M == required.N:
+                        case RegexNodeKind.One or RegexNodeKind.NotOne or RegexNodeKind.Set:
+                        case RegexNodeKind.AtomicLoopOne or RegexNodeKind.AtomicLoopNotOne or RegexNodeKind.AtomicLoopSet:
+                        case RegexNodeKind.LoopOne or RegexNodeKind.LoopNotOne or RegexNodeKind.LoopSet or RegexNodeKind.LazyLoopOne or RegexNodeKind.LazyLoopNotOne or RegexNodeKind.LazyLoopSet when required.M == required.N:
                             break;
 
                         default:
@@ -1126,9 +1126,9 @@ namespace System.Text.RegularExpressions
                     }
 
                     // If this alternation is wrapped as atomic, we need to do the same for the new alternation.
-                    if (alternation.Parent is RegexNode { Kind: RegexNodeKind.Atomic })
+                    if (alternation.Parent is RegexNode { Kind: RegexNodeKind.AtomicGroup })
                     {
-                        var atomic = new RegexNode(RegexNodeKind.Atomic, alternation.Options);
+                        var atomic = new RegexNode(RegexNodeKind.AtomicGroup, alternation.Options);
                         atomic.AddChild(newAlternate);
                         newAlternate = atomic;
                     }
@@ -1330,9 +1330,9 @@ namespace System.Text.RegularExpressions
                         }
                     }
 
-                    if (alternation.Parent is RegexNode parent && parent.Kind == RegexNodeKind.Atomic)
+                    if (alternation.Parent is RegexNode parent && parent.Kind == RegexNodeKind.AtomicGroup)
                     {
-                        var atomic = new RegexNode(RegexNodeKind.Atomic, startingNodeOptions);
+                        var atomic = new RegexNode(RegexNodeKind.AtomicGroup, startingNodeOptions);
                         atomic.AddChild(newAlternate);
                         newAlternate = atomic;
                     }
@@ -1391,19 +1391,19 @@ namespace System.Text.RegularExpressions
                     switch (node.Kind)
                     {
                         case RegexNodeKind.One:
-                        case RegexNodeKind.Oneloop or RegexNodeKind.Oneloopatomic or RegexNodeKind.Onelazy when node.M > 0:
-                        case RegexNodeKind.Notone:
-                        case RegexNodeKind.Notoneloop or RegexNodeKind.Notoneloopatomic or RegexNodeKind.Notonelazy when node.M > 0:
+                        case RegexNodeKind.LoopOne or RegexNodeKind.AtomicLoopOne or RegexNodeKind.LazyLoopOne when node.M > 0:
+                        case RegexNodeKind.NotOne:
+                        case RegexNodeKind.LoopNotOne or RegexNodeKind.AtomicLoopNotOne or RegexNodeKind.LazyLoopNotOne when node.M > 0:
                         case RegexNodeKind.Set:
-                        case RegexNodeKind.Setloop or RegexNodeKind.Setloopatomic or RegexNodeKind.Setlazy when node.M > 0:
+                        case RegexNodeKind.LoopSet or RegexNodeKind.AtomicLoopSet or RegexNodeKind.LazyLoopSet when node.M > 0:
                         case RegexNodeKind.Multi:
                             return node;
 
-                        case RegexNodeKind.Atomic:
+                        case RegexNodeKind.AtomicGroup:
                         case RegexNodeKind.Concatenate:
-                        case RegexNodeKind.Capture:
+                        case RegexNodeKind.CaptureGroup:
                         case RegexNodeKind.Group:
-                        case RegexNodeKind.Loop or RegexNodeKind.Lazyloop when node.M > 0:
+                        case RegexNodeKind.Loop or RegexNodeKind.LazyLoop when node.M > 0:
                         case RegexNodeKind.PositiveLookaround:
                             node = node.Child(0);
                             continue;
@@ -1427,13 +1427,13 @@ namespace System.Text.RegularExpressions
             {
                 switch (node.Kind)
                 {
-                    case RegexNodeKind.One or RegexNodeKind.Oneloop or RegexNodeKind.Oneloopatomic or RegexNodeKind.Onelazy:
+                    case RegexNodeKind.One or RegexNodeKind.LoopOne or RegexNodeKind.AtomicLoopOne or RegexNodeKind.LazyLoopOne:
                         return new StartingLiteralData(range: (node.Ch, node.Ch), negated: false);
 
-                    case RegexNodeKind.Notone or RegexNodeKind.Notoneloop or RegexNodeKind.Notoneloopatomic or RegexNodeKind.Notonelazy:
+                    case RegexNodeKind.NotOne or RegexNodeKind.LoopNotOne or RegexNodeKind.AtomicLoopNotOne or RegexNodeKind.LazyLoopNotOne:
                         return new StartingLiteralData(range: (node.Ch, node.Ch), negated: true);
 
-                    case RegexNodeKind.Set or RegexNodeKind.Setloop or RegexNodeKind.Setloopatomic or RegexNodeKind.Setlazy:
+                    case RegexNodeKind.Set or RegexNodeKind.LoopSet or RegexNodeKind.AtomicLoopSet or RegexNodeKind.LazyLoopSet:
                         Span<char> setChars = stackalloc char[maxSetCharacters];
                         int numChars;
                         if ((numChars = RegexCharClass.GetSetChars(node.Str!, setChars)) != 0)
@@ -1673,12 +1673,12 @@ namespace System.Text.RegularExpressions
                     switch (currentNode.Kind)
                     {
                         // Coalescing a loop with its same type
-                        case RegexNodeKind.Oneloop or RegexNodeKind.Oneloopatomic or RegexNodeKind.Onelazy or RegexNodeKind.Notoneloop or RegexNodeKind.Notoneloopatomic or RegexNodeKind.Notonelazy when nextNode.Kind == currentNode.Kind && currentNode.Ch == nextNode.Ch:
-                        case RegexNodeKind.Setloop or RegexNodeKind.Setloopatomic or RegexNodeKind.Setlazy when nextNode.Kind == currentNode.Kind && currentNode.Str == nextNode.Str:
+                        case RegexNodeKind.LoopOne or RegexNodeKind.AtomicLoopOne or RegexNodeKind.LazyLoopOne or RegexNodeKind.LoopNotOne or RegexNodeKind.AtomicLoopNotOne or RegexNodeKind.LazyLoopNotOne when nextNode.Kind == currentNode.Kind && currentNode.Ch == nextNode.Ch:
+                        case RegexNodeKind.LoopSet or RegexNodeKind.AtomicLoopSet or RegexNodeKind.LazyLoopSet when nextNode.Kind == currentNode.Kind && currentNode.Str == nextNode.Str:
                             if (nextNode.M > 0 &&
-                                currentNode.Kind is RegexNodeKind.Oneloopatomic or RegexNodeKind.Notoneloopatomic or RegexNodeKind.Setloopatomic)
+                                currentNode.Kind is RegexNodeKind.AtomicLoopOne or RegexNodeKind.AtomicLoopNotOne or RegexNodeKind.AtomicLoopSet)
                             {
-                                // Atomic loops can only be combined if the second loop has no lower bound, as if it has a lower bound,
+                                // AtomicGroup loops can only be combined if the second loop has no lower bound, as if it has a lower bound,
                                 // combining them changes behavior. Uncombined, the first loop can consume all matching items;
                                 // the second loop might then not be able to meet its minimum and fail.  But if they're combined, the combined
                                 // minimum of the sole loop could now be met, introducing matches where there shouldn't have been any.
@@ -1699,9 +1699,9 @@ namespace System.Text.RegularExpressions
                             continue;
 
                         // Coalescing a loop with an additional item of the same type
-                        case RegexNodeKind.Oneloop or RegexNodeKind.Onelazy when nextNode.Kind == RegexNodeKind.One && currentNode.Ch == nextNode.Ch:
-                        case RegexNodeKind.Notoneloop or RegexNodeKind.Notonelazy when nextNode.Kind == RegexNodeKind.Notone && currentNode.Ch == nextNode.Ch:
-                        case RegexNodeKind.Setloop or RegexNodeKind.Setlazy when nextNode.Kind == RegexNodeKind.Set && currentNode.Str == nextNode.Str:
+                        case RegexNodeKind.LoopOne or RegexNodeKind.LazyLoopOne when nextNode.Kind == RegexNodeKind.One && currentNode.Ch == nextNode.Ch:
+                        case RegexNodeKind.LoopNotOne or RegexNodeKind.LazyLoopNotOne when nextNode.Kind == RegexNodeKind.NotOne && currentNode.Ch == nextNode.Ch:
+                        case RegexNodeKind.LoopSet or RegexNodeKind.LazyLoopSet when nextNode.Kind == RegexNodeKind.Set && currentNode.Str == nextNode.Str:
                             if (CanCombineCounts(currentNode.M, currentNode.N, 1, 1))
                             {
                                 currentNode.M++;
@@ -1715,7 +1715,7 @@ namespace System.Text.RegularExpressions
                             break;
 
                         // Coalescing a loop with a subsequent string
-                        case RegexNodeKind.Oneloop or RegexNodeKind.Onelazy when nextNode.Kind == RegexNodeKind.Multi && currentNode.Ch == nextNode.Str![0]:
+                        case RegexNodeKind.LoopOne or RegexNodeKind.LazyLoopOne when nextNode.Kind == RegexNodeKind.Multi && currentNode.Ch == nextNode.Str![0]:
                             {
                                 // Determine how many of the multi's characters can be combined.
                                 // We already checked for the first, so we know it's at least one.
@@ -1764,9 +1764,9 @@ namespace System.Text.RegularExpressions
                         // be a deoptimization as those characters could end up matching more slowly as part of loop matching.
 
                         // Coalescing an individual item with a loop.
-                        case RegexNodeKind.One when (nextNode.Kind is RegexNodeKind.Oneloop or RegexNodeKind.Oneloopatomic or RegexNodeKind.Onelazy) && currentNode.Ch == nextNode.Ch:
-                        case RegexNodeKind.Notone when (nextNode.Kind is RegexNodeKind.Notoneloop or RegexNodeKind.Notoneloopatomic or RegexNodeKind.Notonelazy) && currentNode.Ch == nextNode.Ch:
-                        case RegexNodeKind.Set when (nextNode.Kind is RegexNodeKind.Setloop or RegexNodeKind.Setloopatomic or RegexNodeKind.Setlazy) && currentNode.Str == nextNode.Str:
+                        case RegexNodeKind.One when (nextNode.Kind is RegexNodeKind.LoopOne or RegexNodeKind.AtomicLoopOne or RegexNodeKind.LazyLoopOne) && currentNode.Ch == nextNode.Ch:
+                        case RegexNodeKind.NotOne when (nextNode.Kind is RegexNodeKind.LoopNotOne or RegexNodeKind.AtomicLoopNotOne or RegexNodeKind.LazyLoopNotOne) && currentNode.Ch == nextNode.Ch:
+                        case RegexNodeKind.Set when (nextNode.Kind is RegexNodeKind.LoopSet or RegexNodeKind.AtomicLoopSet or RegexNodeKind.LazyLoopSet) && currentNode.Str == nextNode.Str:
                             if (CanCombineCounts(1, 1, nextNode.M, nextNode.N))
                             {
                                 currentNode.Kind = nextNode.Kind;
@@ -1778,10 +1778,10 @@ namespace System.Text.RegularExpressions
                             break;
 
                         // Coalescing an individual item with another individual item.
-                        // We don't coalesce adjacent One nodes into a Oneloop as we'd rather they be joined into a Multi.
-                        case RegexNodeKind.Notone when nextNode.Kind == currentNode.Kind && currentNode.Ch == nextNode.Ch:
+                        // We don't coalesce adjacent One nodes into a LoopOne as we'd rather they be joined into a Multi.
+                        case RegexNodeKind.NotOne when nextNode.Kind == currentNode.Kind && currentNode.Ch == nextNode.Ch:
                         case RegexNodeKind.Set when nextNode.Kind == RegexNodeKind.Set && currentNode.Str == nextNode.Str:
-                            currentNode.MakeRep(RegexNodeKind.Oneloop, 2, 2);
+                            currentNode.MakeRep(RegexNodeKind.LoopOne, 2, 2);
                             next++;
                             continue;
                     }
@@ -1855,7 +1855,7 @@ namespace System.Text.RegularExpressions
                     while (true)
                     {
                         // We can always recur into captures and into the last node of concatenations.
-                        if (node.Kind is RegexNodeKind.Capture or RegexNodeKind.Concatenate)
+                        if (node.Kind is RegexNodeKind.CaptureGroup or RegexNodeKind.Concatenate)
                         {
                             node = node.Child(node.ChildCount() - 1);
                             continue;
@@ -1882,7 +1882,7 @@ namespace System.Text.RegularExpressions
                     // If the node can be changed to atomic based on what comes after it, do so.
                     switch (node.Kind)
                     {
-                        case RegexNodeKind.Oneloop or RegexNodeKind.Notoneloop or RegexNodeKind.Setloop when CanBeMadeAtomic(node, subsequent, iterateNullableSubsequent: true, allowLazy: false):
+                        case RegexNodeKind.LoopOne or RegexNodeKind.LoopNotOne or RegexNodeKind.LoopSet when CanBeMadeAtomic(node, subsequent, iterateNullableSubsequent: true, allowLazy: false):
                             // The greedy loop doesn't overlap with what comes after it, which means giving anything it matches back will not
                             // help the overall match to succeed, which means it can simply become atomic to match as much as possible. The call
                             // to CanBeMadeAtomic passes iterateNullableSubsequent=true because, in a pattern like a*b*c*, when analyzing a*, we
@@ -1891,7 +1891,7 @@ namespace System.Text.RegularExpressions
                             node.MakeLoopAtomic();
                             break;
 
-                        case RegexNodeKind.Onelazy or RegexNodeKind.Notonelazy or RegexNodeKind.Setlazy when CanBeMadeAtomic(node, subsequent, iterateNullableSubsequent: false, allowLazy: true):
+                        case RegexNodeKind.LazyLoopOne or RegexNodeKind.LazyLoopNotOne or RegexNodeKind.LazyLoopSet when CanBeMadeAtomic(node, subsequent, iterateNullableSubsequent: false, allowLazy: true):
                             // The lazy loop doesn't overlap with what comes after it, which means it needs to match as much as its allowed
                             // to match in order for there to be a possibility that what comes next matches (if it doesn't match as much
                             // as it's allowed and there was still more it could match, then what comes next is guaranteed to not match,
@@ -1907,7 +1907,7 @@ namespace System.Text.RegularExpressions
                             // allowLazy is set to true so that the implementation will analyze rather than ignore this node; generally lazy nodes
                             // are ignored due to making them atomic not generally being a sound change, but here we're explicitly choosing to
                             // given the circumstances.
-                            node.Kind -= RegexNodeKind.Onelazy - RegexNodeKind.Oneloop; // lazy to greedy
+                            node.Kind -= RegexNodeKind.LazyLoopOne - RegexNodeKind.LoopOne; // lazy to greedy
                             node.MakeLoopAtomic();
                             break;
 
@@ -1942,13 +1942,13 @@ namespace System.Text.RegularExpressions
         {
             RegexNode node = this;
 
-            Debug.Assert(node.Kind is RegexNodeKind.Loop or RegexNodeKind.Lazyloop);
+            Debug.Assert(node.Kind is RegexNodeKind.Loop or RegexNodeKind.LazyLoop);
 
             // Start by looking at the loop's sole child.
             node = node.Child(0);
 
             // Skip past captures.
-            while (node.Kind == RegexNodeKind.Capture)
+            while (node.Kind == RegexNodeKind.CaptureGroup)
             {
                 node = node.Child(0);
             }
@@ -2080,10 +2080,10 @@ namespace System.Text.RegularExpressions
                     switch (subsequent.Kind)
                     {
                         case RegexNodeKind.Concatenate:
-                        case RegexNodeKind.Capture:
-                        case RegexNodeKind.Atomic:
+                        case RegexNodeKind.CaptureGroup:
+                        case RegexNodeKind.AtomicGroup:
                         case RegexNodeKind.PositiveLookaround when (subsequent.Options & RegexOptions.RightToLeft) == 0: // only lookaheads, not lookbehinds (represented as RTL PositiveLookaround nodes)
-                        case RegexNodeKind.Loop or RegexNodeKind.Lazyloop when subsequent.M > 0:
+                        case RegexNodeKind.Loop or RegexNodeKind.LazyLoop when subsequent.M > 0:
                             subsequent = subsequent.Child(0);
                             continue;
                     }
@@ -2123,24 +2123,24 @@ namespace System.Text.RegularExpressions
                 // Doing so avoids unnecessary backtracking.
                 switch (node.Kind)
                 {
-                    case RegexNodeKind.Oneloop:
-                    case RegexNodeKind.Onelazy when allowLazy:
+                    case RegexNodeKind.LoopOne:
+                    case RegexNodeKind.LazyLoopOne when allowLazy:
                         switch (subsequent.Kind)
                         {
                             case RegexNodeKind.One when node.Ch != subsequent.Ch:
-                            case RegexNodeKind.Notone when node.Ch == subsequent.Ch:
+                            case RegexNodeKind.NotOne when node.Ch == subsequent.Ch:
                             case RegexNodeKind.Set when !RegexCharClass.CharInClass(node.Ch, subsequent.Str!):
-                            case RegexNodeKind.Onelazy or RegexNodeKind.Oneloop or RegexNodeKind.Oneloopatomic when subsequent.M > 0 && node.Ch != subsequent.Ch:
-                            case RegexNodeKind.Notonelazy or RegexNodeKind.Notoneloop or RegexNodeKind.Notoneloopatomic when subsequent.M > 0 && node.Ch == subsequent.Ch:
-                            case RegexNodeKind.Setlazy or RegexNodeKind.Setloop or RegexNodeKind.Setloopatomic when subsequent.M > 0 && !RegexCharClass.CharInClass(node.Ch, subsequent.Str!):
+                            case RegexNodeKind.LazyLoopOne or RegexNodeKind.LoopOne or RegexNodeKind.AtomicLoopOne when subsequent.M > 0 && node.Ch != subsequent.Ch:
+                            case RegexNodeKind.LazyLoopNotOne or RegexNodeKind.LoopNotOne or RegexNodeKind.AtomicLoopNotOne when subsequent.M > 0 && node.Ch == subsequent.Ch:
+                            case RegexNodeKind.LazyLoopSet or RegexNodeKind.LoopSet or RegexNodeKind.AtomicLoopSet when subsequent.M > 0 && !RegexCharClass.CharInClass(node.Ch, subsequent.Str!):
                             case RegexNodeKind.Multi when node.Ch != subsequent.Str![0]:
                             case RegexNodeKind.End:
                             case RegexNodeKind.EndZ or RegexNodeKind.Eol when node.Ch != '\n':
                                 return true;
 
-                            case RegexNodeKind.Onelazy or RegexNodeKind.Oneloop or RegexNodeKind.Oneloopatomic when subsequent.M == 0 && node.Ch != subsequent.Ch:
-                            case RegexNodeKind.Notonelazy or RegexNodeKind.Notoneloop or RegexNodeKind.Notoneloopatomic when subsequent.M == 0 && node.Ch == subsequent.Ch:
-                            case RegexNodeKind.Setlazy or RegexNodeKind.Setloop or RegexNodeKind.Setloopatomic when subsequent.M == 0 && !RegexCharClass.CharInClass(node.Ch, subsequent.Str!):
+                            case RegexNodeKind.LazyLoopOne or RegexNodeKind.LoopOne or RegexNodeKind.AtomicLoopOne when subsequent.M == 0 && node.Ch != subsequent.Ch:
+                            case RegexNodeKind.LazyLoopNotOne or RegexNodeKind.LoopNotOne or RegexNodeKind.AtomicLoopNotOne when subsequent.M == 0 && node.Ch == subsequent.Ch:
+                            case RegexNodeKind.LazyLoopSet or RegexNodeKind.LoopSet or RegexNodeKind.AtomicLoopSet when subsequent.M == 0 && !RegexCharClass.CharInClass(node.Ch, subsequent.Str!):
                             case RegexNodeKind.Boundary when node.M > 0 && RegexCharClass.IsBoundaryWordChar(node.Ch):
                             case RegexNodeKind.NonBoundary when node.M > 0 && !RegexCharClass.IsBoundaryWordChar(node.Ch):
                             case RegexNodeKind.ECMABoundary when node.M > 0 && RegexCharClass.IsECMAWordChar(node.Ch):
@@ -2153,17 +2153,17 @@ namespace System.Text.RegularExpressions
                         }
                         break;
 
-                    case RegexNodeKind.Notoneloop:
-                    case RegexNodeKind.Notonelazy when allowLazy:
+                    case RegexNodeKind.LoopNotOne:
+                    case RegexNodeKind.LazyLoopNotOne when allowLazy:
                         switch (subsequent.Kind)
                         {
                             case RegexNodeKind.One when node.Ch == subsequent.Ch:
-                            case RegexNodeKind.Onelazy or RegexNodeKind.Oneloop or RegexNodeKind.Oneloopatomic when subsequent.M > 0 && node.Ch == subsequent.Ch:
+                            case RegexNodeKind.LazyLoopOne or RegexNodeKind.LoopOne or RegexNodeKind.AtomicLoopOne when subsequent.M > 0 && node.Ch == subsequent.Ch:
                             case RegexNodeKind.Multi when node.Ch == subsequent.Str![0]:
                             case RegexNodeKind.End:
                                 return true;
 
-                            case RegexNodeKind.Onelazy or RegexNodeKind.Oneloop or RegexNodeKind.Oneloopatomic when subsequent.M == 0 && node.Ch == subsequent.Ch:
+                            case RegexNodeKind.LazyLoopOne or RegexNodeKind.LoopOne or RegexNodeKind.AtomicLoopOne when subsequent.M == 0 && node.Ch == subsequent.Ch:
                                 // The loop can be made atomic based on this subsequent node, but we'll need to evaluate the next one as well.
                                 break;
 
@@ -2172,21 +2172,21 @@ namespace System.Text.RegularExpressions
                         }
                         break;
 
-                    case RegexNodeKind.Setloop:
-                    case RegexNodeKind.Setlazy when allowLazy:
+                    case RegexNodeKind.LoopSet:
+                    case RegexNodeKind.LazyLoopSet when allowLazy:
                         switch (subsequent.Kind)
                         {
                             case RegexNodeKind.One when !RegexCharClass.CharInClass(subsequent.Ch, node.Str!):
                             case RegexNodeKind.Set when !RegexCharClass.MayOverlap(node.Str!, subsequent.Str!):
-                            case RegexNodeKind.Onelazy or RegexNodeKind.Oneloop or RegexNodeKind.Oneloopatomic when subsequent.M > 0 && !RegexCharClass.CharInClass(subsequent.Ch, node.Str!):
-                            case RegexNodeKind.Setlazy or RegexNodeKind.Setloop or RegexNodeKind.Setloopatomic when subsequent.M > 0 && !RegexCharClass.MayOverlap(node.Str!, subsequent.Str!):
+                            case RegexNodeKind.LazyLoopOne or RegexNodeKind.LoopOne or RegexNodeKind.AtomicLoopOne when subsequent.M > 0 && !RegexCharClass.CharInClass(subsequent.Ch, node.Str!):
+                            case RegexNodeKind.LazyLoopSet or RegexNodeKind.LoopSet or RegexNodeKind.AtomicLoopSet when subsequent.M > 0 && !RegexCharClass.MayOverlap(node.Str!, subsequent.Str!):
                             case RegexNodeKind.Multi when !RegexCharClass.CharInClass(subsequent.Str![0], node.Str!):
                             case RegexNodeKind.End:
                             case RegexNodeKind.EndZ or RegexNodeKind.Eol when !RegexCharClass.CharInClass('\n', node.Str!):
                                 return true;
 
-                            case RegexNodeKind.Onelazy or RegexNodeKind.Oneloop or RegexNodeKind.Oneloopatomic when subsequent.M == 0 && !RegexCharClass.CharInClass(subsequent.Ch, node.Str!):
-                            case RegexNodeKind.Setlazy or RegexNodeKind.Setloop or RegexNodeKind.Setloopatomic when subsequent.M == 0 && !RegexCharClass.MayOverlap(node.Str!, subsequent.Str!):
+                            case RegexNodeKind.LazyLoopOne or RegexNodeKind.LoopOne or RegexNodeKind.AtomicLoopOne when subsequent.M == 0 && !RegexCharClass.CharInClass(subsequent.Ch, node.Str!):
+                            case RegexNodeKind.LazyLoopSet or RegexNodeKind.LoopSet or RegexNodeKind.AtomicLoopSet when subsequent.M == 0 && !RegexCharClass.MayOverlap(node.Str!, subsequent.Str!):
                             case RegexNodeKind.Boundary when node.M > 0 && node.Str is RegexCharClass.WordClass or RegexCharClass.DigitClass:
                             case RegexNodeKind.NonBoundary when node.M > 0 && node.Str is RegexCharClass.NotWordClass or RegexCharClass.NotDigitClass:
                             case RegexNodeKind.ECMABoundary when node.M > 0 && node.Str is RegexCharClass.ECMAWordClass or RegexCharClass.ECMADigitClass:
@@ -2218,9 +2218,9 @@ namespace System.Text.RegularExpressions
                     RegexNode? parent = subsequent.Parent;
                     switch (parent?.Kind)
                     {
-                        case RegexNodeKind.Atomic:
+                        case RegexNodeKind.AtomicGroup:
                         case RegexNodeKind.Alternate:
-                        case RegexNodeKind.Capture:
+                        case RegexNodeKind.CaptureGroup:
                             subsequent = parent;
                             continue;
 
@@ -2270,7 +2270,7 @@ namespace System.Text.RegularExpressions
             switch (Kind)
             {
                 case RegexNodeKind.One:
-                case RegexNodeKind.Notone:
+                case RegexNodeKind.NotOne:
                 case RegexNodeKind.Set:
                     // Single character.
                     return 1;
@@ -2279,19 +2279,19 @@ namespace System.Text.RegularExpressions
                     // Every character in the string needs to match.
                     return Str!.Length;
 
-                case RegexNodeKind.Notonelazy:
-                case RegexNodeKind.Notoneloop:
-                case RegexNodeKind.Notoneloopatomic:
-                case RegexNodeKind.Onelazy:
-                case RegexNodeKind.Oneloop:
-                case RegexNodeKind.Oneloopatomic:
-                case RegexNodeKind.Setlazy:
-                case RegexNodeKind.Setloop:
-                case RegexNodeKind.Setloopatomic:
+                case RegexNodeKind.LazyLoopNotOne:
+                case RegexNodeKind.LoopNotOne:
+                case RegexNodeKind.AtomicLoopNotOne:
+                case RegexNodeKind.LazyLoopOne:
+                case RegexNodeKind.LoopOne:
+                case RegexNodeKind.AtomicLoopOne:
+                case RegexNodeKind.LazyLoopSet:
+                case RegexNodeKind.LoopSet:
+                case RegexNodeKind.AtomicLoopSet:
                     // One character repeated at least M times.
                     return M;
 
-                case RegexNodeKind.Lazyloop:
+                case RegexNodeKind.LazyLoop:
                 case RegexNodeKind.Loop:
                     // A node graph repeated at least M times.
                     return (int)Math.Min(int.MaxValue - 1, (long)M * Child(0).ComputeMinLength());
@@ -2329,8 +2329,8 @@ namespace System.Text.RegularExpressions
                         return (int)Math.Min(int.MaxValue - 1, sum);
                     }
 
-                case RegexNodeKind.Atomic:
-                case RegexNodeKind.Capture:
+                case RegexNodeKind.AtomicGroup:
+                case RegexNodeKind.CaptureGroup:
                 case RegexNodeKind.Group:
                     // For groups, we just delegate to the sole child.
                     Debug.Assert(ChildCount() == 1);
@@ -2383,7 +2383,7 @@ namespace System.Text.RegularExpressions
             switch (Kind)
             {
                 case RegexNodeKind.One:
-                case RegexNodeKind.Notone:
+                case RegexNodeKind.NotOne:
                 case RegexNodeKind.Set:
                     // Single character.
                     return 1;
@@ -2392,13 +2392,13 @@ namespace System.Text.RegularExpressions
                     // Every character in the string needs to match.
                     return Str!.Length;
 
-                case RegexNodeKind.Notonelazy or RegexNodeKind.Notoneloop or RegexNodeKind.Notoneloopatomic or
-                     RegexNodeKind.Onelazy or RegexNodeKind.Oneloop or RegexNodeKind.Oneloopatomic or
-                     RegexNodeKind.Setlazy or RegexNodeKind.Setloop or RegexNodeKind.Setloopatomic:
+                case RegexNodeKind.LazyLoopNotOne or RegexNodeKind.LoopNotOne or RegexNodeKind.AtomicLoopNotOne or
+                     RegexNodeKind.LazyLoopOne or RegexNodeKind.LoopOne or RegexNodeKind.AtomicLoopOne or
+                     RegexNodeKind.LazyLoopSet or RegexNodeKind.LoopSet or RegexNodeKind.AtomicLoopSet:
                     // Return the max number of iterations if there's an upper bound, or null if it's infinite
                     return N == int.MaxValue ? null : N;
 
-                case RegexNodeKind.Loop or RegexNodeKind.Lazyloop:
+                case RegexNodeKind.Loop or RegexNodeKind.LazyLoop:
                     if (N != int.MaxValue)
                     {
                         // A node graph repeated a fixed number of times
@@ -2468,8 +2468,8 @@ namespace System.Text.RegularExpressions
                         return null;
                     }
 
-                case RegexNodeKind.Atomic:
-                case RegexNodeKind.Capture:
+                case RegexNodeKind.AtomicGroup:
+                case RegexNodeKind.CaptureGroup:
                     // For groups, we just delegate to the sole child.
                     Debug.Assert(ChildCount() == 1);
                     return Child(0).ComputeMaxLength();
@@ -2554,7 +2554,7 @@ namespace System.Text.RegularExpressions
                     vsb.Append(child.Str);
                 }
                 else if (child.Kind is RegexNodeKind.Set ||
-                         (child.Kind is RegexNodeKind.Setloop or RegexNodeKind.Setlazy or RegexNodeKind.Setloopatomic && child.M == child.N))
+                         (child.Kind is RegexNodeKind.LoopSet or RegexNodeKind.LazyLoopSet or RegexNodeKind.AtomicLoopSet && child.M == child.N))
                 {
                     // In particular we want to look for sets that contain only the upper and lowercase variant
                     // of the same ASCII letter.
@@ -2617,11 +2617,11 @@ namespace System.Text.RegularExpressions
 
             static bool CanJoinLengthCheck(RegexNode node) => node.Kind switch
             {
-                RegexNodeKind.One or RegexNodeKind.Notone or RegexNodeKind.Set => true,
+                RegexNodeKind.One or RegexNodeKind.NotOne or RegexNodeKind.Set => true,
                 RegexNodeKind.Multi => true,
-                RegexNodeKind.Oneloop or RegexNodeKind.Onelazy or RegexNodeKind.Oneloopatomic or
-                    RegexNodeKind.Notoneloop or RegexNodeKind.Notonelazy or RegexNodeKind.Notoneloopatomic or
-                    RegexNodeKind.Setloop or RegexNodeKind.Setlazy or RegexNodeKind.Setloopatomic
+                RegexNodeKind.LoopOne or RegexNodeKind.LazyLoopOne or RegexNodeKind.AtomicLoopOne or
+                    RegexNodeKind.LoopNotOne or RegexNodeKind.LazyLoopNotOne or RegexNodeKind.AtomicLoopNotOne or
+                    RegexNodeKind.LoopSet or RegexNodeKind.LazyLoopSet or RegexNodeKind.AtomicLoopSet
                     when node.M == node.N => true,
                 _ => false,
             };
@@ -2685,13 +2685,13 @@ namespace System.Text.RegularExpressions
             switch (Kind)
             {
                 case RegexNodeKind.One:
-                case RegexNodeKind.Notone:
+                case RegexNodeKind.NotOne:
                 case RegexNodeKind.Set:
-                    MakeRep(lazy ? RegexNodeKind.Onelazy : RegexNodeKind.Oneloop, min, max);
+                    MakeRep(lazy ? RegexNodeKind.LazyLoopOne : RegexNodeKind.LoopOne, min, max);
                     return this;
 
                 default:
-                    var result = new RegexNode(lazy ? RegexNodeKind.Lazyloop : RegexNodeKind.Loop, Options, min, max);
+                    var result = new RegexNode(lazy ? RegexNodeKind.LazyLoop : RegexNodeKind.Loop, Options, min, max);
                     result.AddChild(this);
                     return result;
             }
@@ -2812,15 +2812,15 @@ namespace System.Text.RegularExpressions
             }
         }
 
-        /// <summary>Gets whether the node is a Set/Setloop/Setloopatomic/Setlazy node.</summary>
+        /// <summary>Gets whether the node is a Set/LoopSet/AtomicLoopSet/LazyLoopSet node.</summary>
         [MemberNotNullWhen(true, nameof(Str))]
-        public bool IsSetFamily => Kind is RegexNodeKind.Set or RegexNodeKind.Setloop or RegexNodeKind.Setloopatomic or RegexNodeKind.Setlazy;
+        public bool IsSetFamily => Kind is RegexNodeKind.Set or RegexNodeKind.LoopSet or RegexNodeKind.AtomicLoopSet or RegexNodeKind.LazyLoopSet;
 
-        /// <summary>Gets whether the node is a One/Oneloop/Oneloopatomic/Onelazy node.</summary>
-        public bool IsOneFamily => Kind is RegexNodeKind.One or RegexNodeKind.Oneloop or RegexNodeKind.Oneloopatomic or RegexNodeKind.Onelazy;
+        /// <summary>Gets whether the node is a One/LoopOne/AtomicLoopOne/LazyLoopOne node.</summary>
+        public bool IsOneFamily => Kind is RegexNodeKind.One or RegexNodeKind.LoopOne or RegexNodeKind.AtomicLoopOne or RegexNodeKind.LazyLoopOne;
 
-        /// <summary>Gets whether the node is a Notone/Notoneloop/Notoneloopatomic/Notonelazy node.</summary>
-        public bool IsNotoneFamily => Kind is RegexNodeKind.Notone or RegexNodeKind.Notoneloop or RegexNodeKind.Notoneloopatomic or RegexNodeKind.Notonelazy;
+        /// <summary>Gets whether the node is a NotOne/LoopNotOne/AtomicLoopNotOne/LazyLoopNotOne node.</summary>
+        public bool IsNotOneFamily => Kind is RegexNodeKind.NotOne or RegexNodeKind.LoopNotOne or RegexNodeKind.AtomicLoopNotOne or RegexNodeKind.LazyLoopNotOne;
 
 #if DEBUG
         [ExcludeFromCodeCoverage] // Used only for debugging assistance
@@ -2871,17 +2871,17 @@ namespace System.Text.RegularExpressions
 
             switch (Kind)
             {
-                case RegexNodeKind.Oneloop:
-                case RegexNodeKind.Oneloopatomic:
-                case RegexNodeKind.Notoneloop:
-                case RegexNodeKind.Notoneloopatomic:
-                case RegexNodeKind.Onelazy:
-                case RegexNodeKind.Notonelazy:
+                case RegexNodeKind.LoopOne:
+                case RegexNodeKind.AtomicLoopOne:
+                case RegexNodeKind.LoopNotOne:
+                case RegexNodeKind.AtomicLoopNotOne:
+                case RegexNodeKind.LazyLoopOne:
+                case RegexNodeKind.LazyLoopNotOne:
                 case RegexNodeKind.One:
-                case RegexNodeKind.Notone:
+                case RegexNodeKind.NotOne:
                     sb.Append(" '").Append(RegexCharClass.DescribeChar(Ch)).Append('\'');
                     break;
-                case RegexNodeKind.Capture:
+                case RegexNodeKind.CaptureGroup:
                     sb.Append(' ').Append($"index = {M}");
                     if (N != -1)
                     {
@@ -2896,26 +2896,26 @@ namespace System.Text.RegularExpressions
                     sb.Append(" \"").Append(Str).Append('"');
                     break;
                 case RegexNodeKind.Set:
-                case RegexNodeKind.Setloop:
-                case RegexNodeKind.Setloopatomic:
-                case RegexNodeKind.Setlazy:
+                case RegexNodeKind.LoopSet:
+                case RegexNodeKind.AtomicLoopSet:
+                case RegexNodeKind.LazyLoopSet:
                     sb.Append(' ').Append(RegexCharClass.DescribeSet(Str!));
                     break;
             }
 
             switch (Kind)
             {
-                case RegexNodeKind.Oneloop:
-                case RegexNodeKind.Oneloopatomic:
-                case RegexNodeKind.Notoneloop:
-                case RegexNodeKind.Notoneloopatomic:
-                case RegexNodeKind.Onelazy:
-                case RegexNodeKind.Notonelazy:
-                case RegexNodeKind.Setloop:
-                case RegexNodeKind.Setloopatomic:
-                case RegexNodeKind.Setlazy:
+                case RegexNodeKind.LoopOne:
+                case RegexNodeKind.AtomicLoopOne:
+                case RegexNodeKind.LoopNotOne:
+                case RegexNodeKind.AtomicLoopNotOne:
+                case RegexNodeKind.LazyLoopOne:
+                case RegexNodeKind.LazyLoopNotOne:
+                case RegexNodeKind.LoopSet:
+                case RegexNodeKind.AtomicLoopSet:
+                case RegexNodeKind.LazyLoopSet:
                 case RegexNodeKind.Loop:
-                case RegexNodeKind.Lazyloop:
+                case RegexNodeKind.LazyLoop:
                     sb.Append(
                         (M == 0 && N == int.MaxValue) ? "*" :
                         (M == 0 && N == 1) ? "?" :

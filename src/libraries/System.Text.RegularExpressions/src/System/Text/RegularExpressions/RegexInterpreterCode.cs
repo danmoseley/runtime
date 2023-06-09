@@ -39,12 +39,12 @@ namespace System.Text.RegularExpressions
 
             switch (opcode)
             {
-                case RegexOpcode.Oneloop:
-                case RegexOpcode.Onelazy:
-                case RegexOpcode.Notoneloop:
-                case RegexOpcode.Notonelazy:
-                case RegexOpcode.Setloop:
-                case RegexOpcode.Setlazy:
+                case RegexOpcode.LoopOne:
+                case RegexOpcode.LazyLoopOne:
+                case RegexOpcode.LoopNotOne:
+                case RegexOpcode.LazyLoopNotOne:
+                case RegexOpcode.LoopSet:
+                case RegexOpcode.LazyLoopSet:
                 case RegexOpcode.Lazybranch:
                 case RegexOpcode.Branchmark:
                 case RegexOpcode.Lazybranchmark:
@@ -98,7 +98,7 @@ namespace System.Text.RegularExpressions
                     return 1;
 
                 case RegexOpcode.One:
-                case RegexOpcode.Notone:
+                case RegexOpcode.NotOne:
                 case RegexOpcode.Multi:
                 case RegexOpcode.Backreference:
                 case RegexOpcode.TestBackreference:
@@ -115,18 +115,18 @@ namespace System.Text.RegularExpressions
                 case RegexOpcode.Capturemark:
                 case RegexOpcode.Branchcount:
                 case RegexOpcode.Lazybranchcount:
-                case RegexOpcode.Onerep:
-                case RegexOpcode.Notonerep:
-                case RegexOpcode.Oneloop:
-                case RegexOpcode.Oneloopatomic:
-                case RegexOpcode.Notoneloop:
-                case RegexOpcode.Notoneloopatomic:
-                case RegexOpcode.Onelazy:
-                case RegexOpcode.Notonelazy:
-                case RegexOpcode.Setlazy:
-                case RegexOpcode.Setrep:
-                case RegexOpcode.Setloop:
-                case RegexOpcode.Setloopatomic:
+                case RegexOpcode.RepeatOne:
+                case RegexOpcode.RepeatNotOne:
+                case RegexOpcode.LoopOne:
+                case RegexOpcode.AtomicLoopOne:
+                case RegexOpcode.LoopNotOne:
+                case RegexOpcode.AtomicLoopNotOne:
+                case RegexOpcode.LazyLoopOne:
+                case RegexOpcode.LazyLoopNotOne:
+                case RegexOpcode.LazyLoopSet:
+                case RegexOpcode.RepeatSet:
+                case RegexOpcode.LoopSet:
+                case RegexOpcode.AtomicLoopSet:
                     // The opcode has two operands.
                     return 3;
 
@@ -170,23 +170,23 @@ namespace System.Text.RegularExpressions
             switch (opcode)
             {
                 case RegexOpcode.One:
-                case RegexOpcode.Onerep:
-                case RegexOpcode.Oneloop:
-                case RegexOpcode.Oneloopatomic:
-                case RegexOpcode.Onelazy:
-                case RegexOpcode.Notone:
-                case RegexOpcode.Notonerep:
-                case RegexOpcode.Notoneloop:
-                case RegexOpcode.Notoneloopatomic:
-                case RegexOpcode.Notonelazy:
+                case RegexOpcode.RepeatOne:
+                case RegexOpcode.LoopOne:
+                case RegexOpcode.AtomicLoopOne:
+                case RegexOpcode.LazyLoopOne:
+                case RegexOpcode.NotOne:
+                case RegexOpcode.RepeatNotOne:
+                case RegexOpcode.LoopNotOne:
+                case RegexOpcode.AtomicLoopNotOne:
+                case RegexOpcode.LazyLoopNotOne:
                     sb.Append(Indent()).Append('\'').Append(RegexCharClass.DescribeChar((char)Codes[opcodeOffset + 1])).Append('\'');
                     break;
 
                 case RegexOpcode.Set:
-                case RegexOpcode.Setrep:
-                case RegexOpcode.Setloop:
-                case RegexOpcode.Setloopatomic:
-                case RegexOpcode.Setlazy:
+                case RegexOpcode.RepeatSet:
+                case RegexOpcode.LoopSet:
+                case RegexOpcode.AtomicLoopSet:
+                case RegexOpcode.LazyLoopSet:
                     sb.Append(Indent()).Append(RegexCharClass.DescribeSet(Strings[Codes[opcodeOffset + 1]]));
                     break;
 
@@ -224,18 +224,18 @@ namespace System.Text.RegularExpressions
 
             switch (opcode)
             {
-                case RegexOpcode.Onerep:
-                case RegexOpcode.Oneloop:
-                case RegexOpcode.Oneloopatomic:
-                case RegexOpcode.Onelazy:
-                case RegexOpcode.Notonerep:
-                case RegexOpcode.Notoneloop:
-                case RegexOpcode.Notoneloopatomic:
-                case RegexOpcode.Notonelazy:
-                case RegexOpcode.Setrep:
-                case RegexOpcode.Setloop:
-                case RegexOpcode.Setloopatomic:
-                case RegexOpcode.Setlazy:
+                case RegexOpcode.RepeatOne:
+                case RegexOpcode.LoopOne:
+                case RegexOpcode.AtomicLoopOne:
+                case RegexOpcode.LazyLoopOne:
+                case RegexOpcode.RepeatNotOne:
+                case RegexOpcode.LoopNotOne:
+                case RegexOpcode.AtomicLoopNotOne:
+                case RegexOpcode.LazyLoopNotOne:
+                case RegexOpcode.RepeatSet:
+                case RegexOpcode.LoopSet:
+                case RegexOpcode.AtomicLoopSet:
+                case RegexOpcode.LazyLoopSet:
                     sb.Append(", rep = ").Append(Codes[opcodeOffset + 2] == int.MaxValue ? "inf" : Codes[opcodeOffset + 2]);
                     break;
 

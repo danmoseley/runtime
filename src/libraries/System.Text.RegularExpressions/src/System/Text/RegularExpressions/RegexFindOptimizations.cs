@@ -722,7 +722,7 @@ namespace System.Text.RegularExpressions
                         Debug.Assert(LiteralAfterLoop is not null);
                         (RegexNode loopNode, (char Char, string? String, char[]? Chars) literal) = LiteralAfterLoop.GetValueOrDefault();
 
-                        Debug.Assert(loopNode.Kind is RegexNodeKind.Setloop or RegexNodeKind.Setlazy or RegexNodeKind.Setloopatomic);
+                        Debug.Assert(loopNode.Kind is RegexNodeKind.LoopSet or RegexNodeKind.LazyLoopSet or RegexNodeKind.AtomicLoopSet);
                         Debug.Assert(loopNode.N == int.MaxValue);
 
                         int startingPos = pos;

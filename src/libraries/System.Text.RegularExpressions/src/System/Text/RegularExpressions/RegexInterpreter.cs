@@ -834,7 +834,7 @@ namespace System.Text.RegularExpressions
                         advance = 1;
                         continue;
 
-                    case RegexOpcode.Notone:
+                    case RegexOpcode.NotOne:
                         if (Forwardchars() < 1 || Forwardcharnext(inputSpan) == (char)Operand(0))
                         {
                             break;
@@ -888,7 +888,7 @@ namespace System.Text.RegularExpressions
                         advance = 1;
                         continue;
 
-                    case RegexOpcode.Onerep:
+                    case RegexOpcode.RepeatOne:
                         {
                             int c = Operand(1);
                             if (Forwardchars() < c)
@@ -908,7 +908,7 @@ namespace System.Text.RegularExpressions
                         advance = 2;
                         continue;
 
-                    case RegexOpcode.Notonerep:
+                    case RegexOpcode.RepeatNotOne:
                         {
                             int c = Operand(1);
                             if (Forwardchars() < c)
@@ -928,7 +928,7 @@ namespace System.Text.RegularExpressions
                         advance = 2;
                         continue;
 
-                    case RegexOpcode.Setrep:
+                    case RegexOpcode.RepeatSet:
                         {
                             int c = Operand(1);
                             if (Forwardchars() < c)
@@ -951,8 +951,8 @@ namespace System.Text.RegularExpressions
                         advance = 2;
                         continue;
 
-                    case RegexOpcode.Oneloop:
-                    case RegexOpcode.Oneloopatomic:
+                    case RegexOpcode.LoopOne:
+                    case RegexOpcode.AtomicLoopOne:
                         {
                             int len = Math.Min(Operand(1), Forwardchars());
                             char ch = (char)Operand(0);
@@ -967,7 +967,7 @@ namespace System.Text.RegularExpressions
                                 }
                             }
 
-                            if (len > i && _operator == RegexOpcode.Oneloop)
+                            if (len > i && _operator == RegexOpcode.LoopOne)
                             {
                                 TrackPush(len - i - 1, runtextpos - Bump());
                             }
@@ -975,8 +975,8 @@ namespace System.Text.RegularExpressions
                         advance = 2;
                         continue;
 
-                    case RegexOpcode.Notoneloop:
-                    case RegexOpcode.Notoneloopatomic:
+                    case RegexOpcode.LoopNotOne:
+                    case RegexOpcode.AtomicLoopNotOne:
                         {
                             int len = Math.Min(Operand(1), Forwardchars());
                             char ch = (char)Operand(0);
@@ -1010,7 +1010,7 @@ namespace System.Text.RegularExpressions
                                 }
                             }
 
-                            if (len > i && _operator == RegexOpcode.Notoneloop)
+                            if (len > i && _operator == RegexOpcode.LoopNotOne)
                             {
                                 TrackPush(len - i - 1, runtextpos - Bump());
                             }
@@ -1018,8 +1018,8 @@ namespace System.Text.RegularExpressions
                         advance = 2;
                         continue;
 
-                    case RegexOpcode.Setloop:
-                    case RegexOpcode.Setloopatomic:
+                    case RegexOpcode.LoopSet:
+                    case RegexOpcode.AtomicLoopSet:
                         {
                             int len = Math.Min(Operand(1), Forwardchars());
                             int operand0 = Operand(0);
@@ -1036,7 +1036,7 @@ namespace System.Text.RegularExpressions
                                 }
                             }
 
-                            if (len > i && _operator == RegexOpcode.Setloop)
+                            if (len > i && _operator == RegexOpcode.LoopSet)
                             {
                                 TrackPush(len - i - 1, runtextpos - Bump());
                             }
@@ -1044,9 +1044,9 @@ namespace System.Text.RegularExpressions
                         advance = 2;
                         continue;
 
-                    case RegexOpcode.Oneloop | RegexOpcode.Backtracking:
-                    case RegexOpcode.Notoneloop | RegexOpcode.Backtracking:
-                    case RegexOpcode.Setloop | RegexOpcode.Backtracking:
+                    case RegexOpcode.LoopOne | RegexOpcode.Backtracking:
+                    case RegexOpcode.LoopNotOne | RegexOpcode.Backtracking:
+                    case RegexOpcode.LoopSet | RegexOpcode.Backtracking:
                         TrackPop(2);
                         {
                             int i = TrackPeek();
@@ -1060,9 +1060,9 @@ namespace System.Text.RegularExpressions
                         advance = 2;
                         continue;
 
-                    case RegexOpcode.Onelazy:
-                    case RegexOpcode.Notonelazy:
-                    case RegexOpcode.Setlazy:
+                    case RegexOpcode.LazyLoopOne:
+                    case RegexOpcode.LazyLoopNotOne:
+                    case RegexOpcode.LazyLoopSet:
                         {
                             int c = Math.Min(Operand(1), Forwardchars());
                             if (c > 0)
@@ -1073,7 +1073,7 @@ namespace System.Text.RegularExpressions
                         advance = 2;
                         continue;
 
-                    case RegexOpcode.Onelazy | RegexOpcode.Backtracking:
+                    case RegexOpcode.LazyLoopOne | RegexOpcode.Backtracking:
                         TrackPop(2);
                         {
                             int pos = TrackPeek(1);
@@ -1093,7 +1093,7 @@ namespace System.Text.RegularExpressions
                         advance = 2;
                         continue;
 
-                    case RegexOpcode.Notonelazy | RegexOpcode.Backtracking:
+                    case RegexOpcode.LazyLoopNotOne | RegexOpcode.Backtracking:
                         TrackPop(2);
                         {
                             int pos = TrackPeek(1);
@@ -1113,7 +1113,7 @@ namespace System.Text.RegularExpressions
                         advance = 2;
                         continue;
 
-                    case RegexOpcode.Setlazy | RegexOpcode.Backtracking:
+                    case RegexOpcode.LazyLoopSet | RegexOpcode.Backtracking:
                         TrackPop(2);
                         {
                             int pos = TrackPeek(1);

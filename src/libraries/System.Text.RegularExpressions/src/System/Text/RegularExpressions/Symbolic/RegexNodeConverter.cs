@@ -13,7 +13,7 @@ namespace System.Text.RegularExpressions.Symbolic
     /// <summary>Provides functionality to convert <see cref="RegexNode"/>s to corresponding <see cref="SymbolicRegexNode{S}"/>s.</summary>
     internal sealed class RegexNodeConverter
     {
-        /// <summary>Capture information.</summary>
+        /// <summary>CaptureGroup information.</summary>
         private readonly Hashtable? _captureSparseMapping;
         /// <summary>The builder to use to create the <see cref="SymbolicRegexNode{S}"/> nodes.</summary>
         internal readonly SymbolicRegexBuilder<BDD> _builder;
@@ -64,7 +64,7 @@ namespace System.Text.RegularExpressions.Symbolic
                             result.AddLast(_builder.CreateSingleton(_builder._charSetSolver.CreateBDDFromChar(node.Ch)));
                             break;
 
-                        case RegexNodeKind.Notone:
+                        case RegexNodeKind.NotOne:
                             result.AddLast(_builder.CreateSingleton(_builder._solver.Not(_builder._charSetSolver.CreateBDDFromChar(node.Ch))));
                             break;
 
@@ -90,8 +90,8 @@ namespace System.Text.RegularExpressions.Symbolic
                         case RegexNodeKind.Concatenate:
                         case RegexNodeKind.Alternate:
                         case RegexNodeKind.Loop:
-                        case RegexNodeKind.Lazyloop:
-                        case RegexNodeKind.Capture when node.N == -1: // N == -1 because balancing groups (which have N >= 0) aren't supported
+                        case RegexNodeKind.LazyLoop:
+                        case RegexNodeKind.CaptureGroup when node.N == -1: // N == -1 because balancing groups (which have N >= 0) aren't supported
                             {
                                 Debug.Assert(childResults is not null && childResults.Length == node.ChildCount());
 
@@ -109,29 +109,29 @@ namespace System.Text.RegularExpressions.Symbolic
 
                         // Specialized loops
 
-                        case RegexNodeKind.Oneloop:
-                        case RegexNodeKind.Onelazy:
-                        case RegexNodeKind.Notoneloop:
-                        case RegexNodeKind.Notonelazy:
+                        case RegexNodeKind.LoopOne:
+                        case RegexNodeKind.LazyLoopOne:
+                        case RegexNodeKind.LoopNotOne:
+                        case RegexNodeKind.LazyLoopNotOne:
                             {
                                 // Create a BDD that represents the character, then create a loop around it.
                                 BDD bdd = _builder._charSetSolver.CreateBDDFromChar(node.Ch);
-                                if (node.IsNotoneFamily)
+                                if (node.IsNotOneFamily)
                                 {
                                     bdd = _builder._solver.Not(bdd);
                                 }
-                                result.AddLast(_builder.CreateLoop(_builder.CreateSingleton(bdd), node.Kind is RegexNodeKind.Onelazy or RegexNodeKind.Notonelazy, node.M, node.N));
+                                result.AddLast(_builder.CreateLoop(_builder.CreateSingleton(bdd), node.Kind is RegexNodeKind.LazyLoopOne or RegexNodeKind.LazyLoopNotOne, node.M, node.N));
                                 break;
                             }
 
-                        case RegexNodeKind.Setloop:
-                        case RegexNodeKind.Setlazy:
+                        case RegexNodeKind.LoopSet:
+                        case RegexNodeKind.LazyLoopSet:
                             {
                                 // Create a BDD that represents the set string, then create a loop around it.
                                 string? set = node.Str;
                                 Debug.Assert(set is not null);
                                 BDD setBdd = CreateBDDFromSetString(set);
-                                result.AddLast(_builder.CreateLoop(_builder.CreateSingleton(setBdd), node.Kind == RegexNodeKind.Setlazy, node.M, node.N));
+                                result.AddLast(_builder.CreateLoop(_builder.CreateSingleton(setBdd), node.Kind == RegexNodeKind.LazyLoopSet, node.M, node.N));
                                 break;
                             }
 
@@ -183,10 +183,10 @@ namespace System.Text.RegularExpressions.Symbolic
                         default:
                             throw new NotSupportedException(SR.Format(SR.NotSupported_NonBacktrackingConflictingExpression, node.Kind switch
                             {
-                                RegexNodeKind.Atomic or RegexNodeKind.Setloopatomic or RegexNodeKind.Oneloopatomic or RegexNodeKind.Notoneloopatomic => SR.ExpressionDescription_AtomicSubexpressions,
+                                RegexNodeKind.AtomicGroup or RegexNodeKind.AtomicLoopSet or RegexNodeKind.AtomicLoopOne or RegexNodeKind.AtomicLoopNotOne => SR.ExpressionDescription_AtomicSubexpressions,
                                 RegexNodeKind.Backreference => SR.ExpressionDescription_Backreference,
                                 RegexNodeKind.BackreferenceConditional => SR.ExpressionDescription_Conditional,
-                                RegexNodeKind.Capture => SR.ExpressionDescription_BalancingGroup,
+                                RegexNodeKind.CaptureGroup => SR.ExpressionDescription_BalancingGroup,
                                 RegexNodeKind.ExpressionConditional => SR.ExpressionDescription_IfThenElse,
                                 RegexNodeKind.NegativeLookaround => SR.ExpressionDescription_NegativeLookaround,
                                 RegexNodeKind.PositiveLookaround => SR.ExpressionDescription_PositiveLookaround,
@@ -254,7 +254,7 @@ namespace System.Text.RegularExpressions.Symbolic
                             }
 
                         case RegexNodeKind.Loop:
-                        case RegexNodeKind.Lazyloop:
+                        case RegexNodeKind.LazyLoop:
                             {
                                 Debug.Assert(childResults.Length == 1);
                                 DoublyLinkedList<SymbolicRegexNode<BDD>> childResult = childResults[0];
@@ -263,14 +263,14 @@ namespace System.Text.RegularExpressions.Symbolic
                                 SymbolicRegexNode<BDD> body = childResult.Count == 1 ?
                                     childResult.FirstElement :
                                     _builder.CreateConcatAlreadyReversed(childResult);
-                                result.AddLast(_builder.CreateLoop(body, node.Kind == RegexNodeKind.Lazyloop, node.M, node.N));
+                                result.AddLast(_builder.CreateLoop(body, node.Kind == RegexNodeKind.LazyLoop, node.M, node.N));
                                 break;
                             }
 
                         default:
                             {
                                 // No other nodes besides captures can have been pushed twice at this point.
-                                Debug.Assert(node.Kind == RegexNodeKind.Capture && node.N == -1);
+                                Debug.Assert(node.Kind == RegexNodeKind.CaptureGroup && node.N == -1);
 
                                 Debug.Assert(childResults.Length == 1);
                                 DoublyLinkedList<SymbolicRegexNode<BDD>> childResult = childResults[0];
@@ -288,7 +288,7 @@ namespace System.Text.RegularExpressions.Symbolic
             }
 
             // Only a top-level concatenation or capture node can result in a non-singleton list.
-            Debug.Assert(rootResult.Count == 1 || root.Kind == RegexNodeKind.Concatenate || root.Kind == RegexNodeKind.Capture);
+            Debug.Assert(rootResult.Count == 1 || root.Kind == RegexNodeKind.Concatenate || root.Kind == RegexNodeKind.CaptureGroup);
 
             return rootResult.Count == 1 ?
                 rootResult.FirstElement :

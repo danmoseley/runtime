@@ -47,8 +47,8 @@ namespace System.Text.RegularExpressions
                     switch (node.Kind)
                     {
                         case RegexNodeKind.Alternate:
-                        case RegexNodeKind.Loop or RegexNodeKind.Lazyloop when node.M != node.N:
-                        case RegexNodeKind.Oneloop or RegexNodeKind.Notoneloop or RegexNodeKind.Setloop or RegexNodeKind.Onelazy or RegexNodeKind.Notonelazy or RegexNodeKind.Setlazy when node.M != node.N:
+                        case RegexNodeKind.Loop or RegexNodeKind.LazyLoop when node.M != node.N:
+                        case RegexNodeKind.LoopOne or RegexNodeKind.LoopNotOne or RegexNodeKind.LoopSet or RegexNodeKind.LazyLoopOne or RegexNodeKind.LazyLoopNotOne or RegexNodeKind.LazyLoopSet when node.M != node.N:
                             (results._mayBacktrack ??= new HashSet<RegexNode>()).Add(node);
                             break;
                     }
@@ -60,20 +60,20 @@ namespace System.Text.RegularExpressions
                 {
                     // Some node types add atomicity around what they wrap.  Set isAtomicBySelfOrParent to true for such nodes
                     // even if it was false upon entering the method.
-                    case RegexNodeKind.Atomic:
+                    case RegexNodeKind.AtomicGroup:
                     case RegexNodeKind.NegativeLookaround:
                     case RegexNodeKind.PositiveLookaround:
                         isAtomicBySelf = true;
                         break;
 
                     // Track any nodes that are themselves captures.
-                    case RegexNodeKind.Capture:
+                    case RegexNodeKind.CaptureGroup:
                         results._containsCapture.Add(node);
                         break;
 
                     // Track whether we've recurred into a loop
                     case RegexNodeKind.Loop:
-                    case RegexNodeKind.Lazyloop:
+                    case RegexNodeKind.LazyLoop:
                         isInLoop = true;
                         break;
                 }
@@ -90,15 +90,15 @@ namespace System.Text.RegularExpressions
                     bool treatChildAsAtomic = (isAtomicByAncestor | isAtomicBySelf) && node.Kind switch
                     {
                         // If the parent is atomic, so is the child.  That's the whole purpose
-                        // of the Atomic node, and lookarounds are also implicitly atomic.
-                        RegexNodeKind.Atomic or RegexNodeKind.NegativeLookaround or RegexNodeKind.PositiveLookaround => true,
+                        // of the AtomicGroup node, and lookarounds are also implicitly atomic.
+                        RegexNodeKind.AtomicGroup or RegexNodeKind.NegativeLookaround or RegexNodeKind.PositiveLookaround => true,
 
                         // Each branch is considered independently, so any atomicity applied to the alternation also applies
                         // to each individual branch.  This is true as well for conditionals.
                         RegexNodeKind.Alternate or RegexNodeKind.BackreferenceConditional or RegexNodeKind.ExpressionConditional => true,
 
                         // Captures don't impact atomicity: if the parent of a capture is atomic, the capture is also atomic.
-                        RegexNodeKind.Capture => true,
+                        RegexNodeKind.CaptureGroup => true,
 
                         // If the parent is a concatenation and this is the last node, any atomicity
                         // applying to the concatenation applies to this node, too.
@@ -108,7 +108,7 @@ namespace System.Text.RegularExpressions
                         // atomic as can whatever they wrap, as they won't ever iterate more than once
                         // and thus we don't need to worry about one iteration consuming input destined
                         // for a subsequent iteration.
-                        RegexNodeKind.Loop or RegexNodeKind.Lazyloop when node.N == 1 => true,
+                        RegexNodeKind.Loop or RegexNodeKind.LazyLoop when node.N == 1 => true,
 
                         // For any other parent type, give up on trying to prove atomicity.
                         _ => false,

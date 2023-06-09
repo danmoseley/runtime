@@ -354,7 +354,7 @@ namespace System.Text.RegularExpressions
 
         /// <summary>
         /// The responsibility of Go() is to run the regular expression at
-        /// runtextpos and call Capture() on all the captured subexpressions,
+        /// runtextpos and call CaptureGroup() on all the captured subexpressions,
         /// then to leave runtextpos at the ending position. It should leave
         /// runtextpos where it started if there was no match.
         /// </summary>

@@ -1231,7 +1231,7 @@ namespace System.Text.RegularExpressions
                 Debug.Assert(_regexTree.FindOptimizations.LiteralAfterLoop is not null);
                 (RegexNode LoopNode, (char Char, string? String, char[]? Chars) Literal) target = _regexTree.FindOptimizations.LiteralAfterLoop.Value;
 
-                Debug.Assert(target.LoopNode.Kind is RegexNodeKind.Setloop or RegexNodeKind.Setlazy or RegexNodeKind.Setloopatomic);
+                Debug.Assert(target.LoopNode.Kind is RegexNodeKind.LoopSet or RegexNodeKind.LazyLoopSet or RegexNodeKind.AtomicLoopSet);
                 Debug.Assert(target.LoopNode.N == int.MaxValue);
 
                 // while (true)
@@ -1403,22 +1403,22 @@ namespace System.Text.RegularExpressions
             _int32LocalsPool?.Clear();
             _readOnlySpanCharLocalsPool?.Clear();
 
-            // Get the root Capture node of the tree.
+            // Get the root CaptureGroup node of the tree.
             RegexNode node = _regexTree.Root;
-            Debug.Assert(node.Kind == RegexNodeKind.Capture, "Every generated tree should begin with a capture node");
+            Debug.Assert(node.Kind == RegexNodeKind.CaptureGroup, "Every generated tree should begin with a capture node");
             Debug.Assert(node.ChildCount() == 1, "Capture nodes should have one child");
 
-            // Skip the Capture node. We handle the implicit root capture specially.
+            // Skip the CaptureGroup node. We handle the implicit root capture specially.
             node = node.Child(0);
 
             // In some limited cases, TryFindNextPossibleStartingPosition will only return true if it successfully matched the whole expression.
             // We can special case these to do essentially nothing in TryMatchAtCurrentPosition other than emit the capture.
             switch (node.Kind)
             {
-                case RegexNodeKind.Multi or RegexNodeKind.Notone or RegexNodeKind.One or RegexNodeKind.Set:
+                case RegexNodeKind.Multi or RegexNodeKind.NotOne or RegexNodeKind.One or RegexNodeKind.Set:
                     // This is the case for single and multiple characters, though the whole thing is only guaranteed
                     // to have been validated in TryFindNextPossibleStartingPosition when doing case-sensitive comparison.
-                    // base.Capture(0, base.runtextpos, base.runtextpos + node.Str.Length);
+                    // base.CaptureGroup(0, base.runtextpos, base.runtextpos + node.Str.Length);
                     // base.runtextpos = base.runtextpos + node.Str.Length;
                     // return true;
                     int length = node.Kind == RegexNodeKind.Multi ? node.Str!.Length : 1;
@@ -1490,7 +1490,7 @@ namespace System.Text.RegularExpressions
 
             // pos += sliceStaticPos;
             // base.runtextpos = pos;
-            // Capture(0, originalpos, pos);
+            // CaptureGroup(0, originalpos, pos);
             // return true;
             Ldthis();
             Ldloc(pos);
@@ -1629,7 +1629,7 @@ namespace System.Text.RegularExpressions
 
                 Label originalDoneLabel = doneLabel;
 
-                // Both atomic and non-atomic are supported.  While a parent RegexNode.Atomic node will itself
+                // Both atomic and non-atomic are supported.  While a parent RegexNode.AtomicGroup node will itself
                 // successfully prevent backtracking into this child node, we can emit better / cheaper code
                 // for an Alternate when it is atomic, so we still take it into account here.
                 Debug.Assert(node.Parent is not null);
@@ -2348,10 +2348,10 @@ namespace System.Text.RegularExpressions
                 }
             }
 
-            // Emits the code for a Capture node.
+            // Emits the code for a CaptureGroup node.
             void EmitCapture(RegexNode node, RegexNode? subsequent = null)
             {
-                Debug.Assert(node.Kind is RegexNodeKind.Capture, $"Unexpected type: {node.Kind}");
+                Debug.Assert(node.Kind is RegexNodeKind.CaptureGroup, $"Unexpected type: {node.Kind}");
                 Debug.Assert(node.ChildCount() == 1, $"Expected 1 child, found {node.ChildCount()}");
 
                 int capnum = RegexParser.MapCaptureNumber(node.M, _regexTree!.CaptureNumberSparseMapping);
@@ -2389,7 +2389,7 @@ namespace System.Text.RegularExpressions
 
                 if (uncapnum == -1)
                 {
-                    // Capture(capnum, startingPos, pos);
+                    // CaptureGroup(capnum, startingPos, pos);
                     Ldthis();
                     Ldc(capnum);
                     Ldloc(startingPos);
@@ -2652,26 +2652,26 @@ namespace System.Text.RegularExpressions
                         return;
 
                     case RegexNodeKind.One:
-                    case RegexNodeKind.Notone:
+                    case RegexNodeKind.NotOne:
                     case RegexNodeKind.Set:
                         EmitSingleChar(node, emitLengthChecksIfRequired);
                         return;
 
-                    case RegexNodeKind.Oneloop:
-                    case RegexNodeKind.Notoneloop:
-                    case RegexNodeKind.Setloop:
+                    case RegexNodeKind.LoopOne:
+                    case RegexNodeKind.LoopNotOne:
+                    case RegexNodeKind.LoopSet:
                         EmitSingleCharLoop(node, subsequent, emitLengthChecksIfRequired);
                         return;
 
-                    case RegexNodeKind.Onelazy:
-                    case RegexNodeKind.Notonelazy:
-                    case RegexNodeKind.Setlazy:
-                        EmitSingleCharLazy(node, subsequent, emitLengthChecksIfRequired);
+                    case RegexNodeKind.LazyLoopOne:
+                    case RegexNodeKind.LazyLoopNotOne:
+                    case RegexNodeKind.LazyLoopSet:
+                        EmitSingleCharLazyLoop(node, subsequent, emitLengthChecksIfRequired);
                         return;
 
-                    case RegexNodeKind.Oneloopatomic:
-                    case RegexNodeKind.Notoneloopatomic:
-                    case RegexNodeKind.Setloopatomic:
+                    case RegexNodeKind.AtomicLoopOne:
+                    case RegexNodeKind.AtomicLoopNotOne:
+                    case RegexNodeKind.AtomicLoopSet:
                         EmitSingleCharAtomicLoop(node);
                         return;
 
@@ -2679,8 +2679,8 @@ namespace System.Text.RegularExpressions
                         EmitLoop(node);
                         return;
 
-                    case RegexNodeKind.Lazyloop:
-                        EmitLazy(node);
+                    case RegexNodeKind.LazyLoop:
+                        EmitLazyLoop(node);
                         return;
 
                     case RegexNodeKind.Alternate:
@@ -2691,7 +2691,7 @@ namespace System.Text.RegularExpressions
                         EmitConcatenation(node, subsequent, emitLengthChecksIfRequired);
                         return;
 
-                    case RegexNodeKind.Atomic:
+                    case RegexNodeKind.AtomicGroup:
                         EmitAtomic(node, subsequent);
                         return;
 
@@ -2707,7 +2707,7 @@ namespace System.Text.RegularExpressions
                         EmitExpressionConditional(node);
                         return;
 
-                    case RegexNodeKind.Capture:
+                    case RegexNodeKind.CaptureGroup:
                         EmitCapture(node, subsequent);
                         return;
 
@@ -2739,7 +2739,7 @@ namespace System.Text.RegularExpressions
             // Emits the node for an atomic.
             void EmitAtomic(RegexNode node, RegexNode? subsequent)
             {
-                Debug.Assert(node.Kind is RegexNodeKind.Atomic or RegexNodeKind.PositiveLookaround or RegexNodeKind.NegativeLookaround, $"Unexpected type: {node.Kind}");
+                Debug.Assert(node.Kind is RegexNodeKind.AtomicGroup or RegexNodeKind.PositiveLookaround or RegexNodeKind.NegativeLookaround, $"Unexpected type: {node.Kind}");
                 Debug.Assert(node.ChildCount() == 1, $"Expected 1 child, found {node.ChildCount()}");
 
                 RegexNode child = node.Child(0);
@@ -2872,7 +2872,7 @@ namespace System.Text.RegularExpressions
             // Emits the code to handle a single-character match.
             void EmitSingleChar(RegexNode node, bool emitLengthCheck = true, LocalBuilder? offset = null)
             {
-                Debug.Assert(node.IsOneFamily || node.IsNotoneFamily || node.IsSetFamily, $"Unexpected type: {node.Kind}");
+                Debug.Assert(node.IsOneFamily || node.IsNotOneFamily || node.IsSetFamily, $"Unexpected type: {node.Kind}");
 
                 bool rtl = (node.Options & RegexOptions.RightToLeft) != 0;
                 Debug.Assert(!rtl || offset is null);
@@ -2924,7 +2924,7 @@ namespace System.Text.RegularExpressions
                     {
                         BneFar(doneLabel);
                     }
-                    else // IsNotoneFamily
+                    else // IsNotOneFamily
                     {
                         BeqFar(doneLabel);
                     }
@@ -3181,7 +3181,7 @@ namespace System.Text.RegularExpressions
             // Emits the code to handle a backtracking, single-character loop.
             void EmitSingleCharLoop(RegexNode node, RegexNode? subsequent = null, bool emitLengthChecksIfRequired = true)
             {
-                Debug.Assert(node.Kind is RegexNodeKind.Oneloop or RegexNodeKind.Notoneloop or RegexNodeKind.Setloop, $"Unexpected type: {node.Kind}");
+                Debug.Assert(node.Kind is RegexNodeKind.LoopOne or RegexNodeKind.LoopNotOne or RegexNodeKind.LoopSet, $"Unexpected type: {node.Kind}");
 
                 // If this is actually atomic based on its parent, emit it as atomic instead; no backtracking necessary.
                 if (analysis.IsAtomicByAncestor(node))
@@ -3395,9 +3395,9 @@ namespace System.Text.RegularExpressions
                 doneLabel = backtrackingLabel; // leave set to the backtracking label for all subsequent nodes
             }
 
-            void EmitSingleCharLazy(RegexNode node, RegexNode? subsequent = null, bool emitLengthChecksIfRequired = true)
+            void EmitSingleCharLazyLoop(RegexNode node, RegexNode? subsequent = null, bool emitLengthChecksIfRequired = true)
             {
-                Debug.Assert(node.Kind is RegexNodeKind.Onelazy or RegexNodeKind.Notonelazy or RegexNodeKind.Setlazy, $"Unexpected type: {node.Kind}");
+                Debug.Assert(node.Kind is RegexNodeKind.LazyLoopOne or RegexNodeKind.LazyLoopNotOne or RegexNodeKind.LazyLoopSet, $"Unexpected type: {node.Kind}");
 
                 // Emit the min iterations as a repeater.  Any failures here don't necessitate backtracking,
                 // as the lazy itself failed to match, and there's no backtracking possible by the individual
@@ -3498,7 +3498,7 @@ namespace System.Text.RegularExpressions
                 // see if we can skip ahead more iterations by doing a search for a following literal.
                 if (!rtl &&
                     iterationCount is null &&
-                    node.Kind is RegexNodeKind.Notonelazy &&
+                    node.Kind is RegexNodeKind.LazyLoopNotOne &&
                     subsequent?.FindStartingLiteral(4) is RegexNode.StartingLiteralData literal && // 5 == max optimized by IndexOfAny, and we need to reserve 1 for node.Ch
                     !literal.Negated && // not negated; can't search for both the node.Ch and a negated subsequent char with an IndexOf* method
                     (literal.String is not null ||
@@ -3657,7 +3657,7 @@ namespace System.Text.RegularExpressions
                 }
                 else if (!rtl &&
                     iterationCount is null &&
-                    node.Kind is RegexNodeKind.Setlazy &&
+                    node.Kind is RegexNodeKind.LazyLoopSet &&
                     node.Str == RegexCharClass.AnyClass &&
                     subsequent?.FindStartingLiteralNode() is RegexNode literal2 &&
                     CanEmitIndexOf(literal2, out _))
@@ -3760,9 +3760,9 @@ namespace System.Text.RegularExpressions
                 }
             }
 
-            void EmitLazy(RegexNode node)
+            void EmitLazyLoop(RegexNode node)
             {
-                Debug.Assert(node.Kind is RegexNodeKind.Lazyloop, $"Unexpected type: {node.Kind}");
+                Debug.Assert(node.Kind is RegexNodeKind.LazyLoop, $"Unexpected type: {node.Kind}");
                 Debug.Assert(node.M < int.MaxValue, $"Unexpected M={node.M}");
                 Debug.Assert(node.N >= node.M, $"Unexpected M={node.M}, N={node.N}");
                 Debug.Assert(node.ChildCount() == 1, $"Expected 1 child, found {node.ChildCount()}");
@@ -4113,7 +4113,7 @@ namespace System.Text.RegularExpressions
             // might be used to implement the required iterations of other kinds of loops.
             void EmitSingleCharRepeater(RegexNode node, bool emitLengthChecksIfRequired = true)
             {
-                Debug.Assert(node.IsOneFamily || node.IsNotoneFamily || node.IsSetFamily, $"Unexpected type: {node.Kind}");
+                Debug.Assert(node.IsOneFamily || node.IsNotOneFamily || node.IsSetFamily, $"Unexpected type: {node.Kind}");
 
                 int iterations = node.M;
                 bool rtl = (node.Options & RegexOptions.RightToLeft) != 0;
@@ -4262,7 +4262,7 @@ namespace System.Text.RegularExpressions
             // Emits the code to handle a non-backtracking, variable-length loop around a single character comparison.
             void EmitSingleCharAtomicLoop(RegexNode node)
             {
-                Debug.Assert(node.Kind is RegexNodeKind.Oneloop or RegexNodeKind.Oneloopatomic or RegexNodeKind.Notoneloop or RegexNodeKind.Notoneloopatomic or RegexNodeKind.Setloop or RegexNodeKind.Setloopatomic, $"Unexpected type: {node.Kind}");
+                Debug.Assert(node.Kind is RegexNodeKind.LoopOne or RegexNodeKind.AtomicLoopOne or RegexNodeKind.LoopNotOne or RegexNodeKind.AtomicLoopNotOne or RegexNodeKind.LoopSet or RegexNodeKind.AtomicLoopSet, $"Unexpected type: {node.Kind}");
 
                 // If this is actually a repeater, emit that instead.
                 if (node.M == node.N)
@@ -4327,7 +4327,7 @@ namespace System.Text.RegularExpressions
                         {
                             BneFar(atomicLoopDoneLabel);
                         }
-                        else // IsNotoneFamily
+                        else // IsNotOneFamily
                         {
                             BeqFar(atomicLoopDoneLabel);
                         }
@@ -4355,7 +4355,7 @@ namespace System.Text.RegularExpressions
                 else if (node.IsSetFamily && maxIterations == int.MaxValue && node.Str == RegexCharClass.AnyClass)
                 {
                     // .* was used with RegexOptions.Singleline, which means it'll consume everything.  Just jump to the end.
-                    // The unbounded constraint is the same as in the Notone case above, done purely for simplicity.
+                    // The unbounded constraint is the same as in the NotOne case above, done purely for simplicity.
 
                     // int i = inputSpan.Length - pos;
                     TransferSliceStaticPosToPos();
@@ -4442,7 +4442,7 @@ namespace System.Text.RegularExpressions
                         {
                             BneFar(atomicLoopDoneLabel);
                         }
-                        else // IsNotoneFamily
+                        else // IsNotOneFamily
                         {
                             BeqFar(atomicLoopDoneLabel);
                         }
@@ -4509,7 +4509,7 @@ namespace System.Text.RegularExpressions
             // Emits the code to handle a non-backtracking optional zero-or-one loop.
             void EmitAtomicSingleCharZeroOrOne(RegexNode node)
             {
-                Debug.Assert(node.Kind is RegexNodeKind.Oneloop or RegexNodeKind.Oneloopatomic or RegexNodeKind.Notoneloop or RegexNodeKind.Notoneloopatomic or RegexNodeKind.Setloop or RegexNodeKind.Setloopatomic, $"Unexpected type: {node.Kind}");
+                Debug.Assert(node.Kind is RegexNodeKind.LoopOne or RegexNodeKind.AtomicLoopOne or RegexNodeKind.LoopNotOne or RegexNodeKind.AtomicLoopNotOne or RegexNodeKind.LoopSet or RegexNodeKind.AtomicLoopSet, $"Unexpected type: {node.Kind}");
                 Debug.Assert(node.M == 0 && node.N == 1);
 
                 bool rtl = (node.Options & RegexOptions.RightToLeft) != 0;
@@ -4564,7 +4564,7 @@ namespace System.Text.RegularExpressions
                     {
                         BneFar(skipUpdatesLabel);
                     }
-                    else // IsNotoneFamily
+                    else // IsNotOneFamily
                     {
                         BeqFar(skipUpdatesLabel);
                     }
@@ -4598,7 +4598,7 @@ namespace System.Text.RegularExpressions
 
             void EmitNonBacktrackingRepeater(RegexNode node)
             {
-                Debug.Assert(node.Kind is RegexNodeKind.Loop or RegexNodeKind.Lazyloop, $"Unexpected type: {node.Kind}");
+                Debug.Assert(node.Kind is RegexNodeKind.Loop or RegexNodeKind.LazyLoop, $"Unexpected type: {node.Kind}");
                 Debug.Assert(node.M < int.MaxValue, $"Unexpected M={node.M}");
                 Debug.Assert(node.M == node.N, $"Unexpected M={node.M} == N={node.N}");
                 Debug.Assert(node.ChildCount() == 1, $"Expected 1 child, found {node.ChildCount()}");
@@ -4636,7 +4636,7 @@ namespace System.Text.RegularExpressions
 
             void EmitLoop(RegexNode node)
             {
-                Debug.Assert(node.Kind is RegexNodeKind.Loop or RegexNodeKind.Lazyloop, $"Unexpected type: {node.Kind}");
+                Debug.Assert(node.Kind is RegexNodeKind.Loop or RegexNodeKind.LazyLoop, $"Unexpected type: {node.Kind}");
                 Debug.Assert(node.M < int.MaxValue, $"Unexpected M={node.M}");
                 Debug.Assert(node.N >= node.M, $"Unexpected M={node.M}, N={node.N}");
                 Debug.Assert(node.ChildCount() == 1, $"Expected 1 child, found {node.ChildCount()}");
@@ -5040,7 +5040,7 @@ namespace System.Text.RegularExpressions
                     return true;
                 }
 
-                if (node.IsOneFamily || node.IsNotoneFamily)
+                if (node.IsOneFamily || node.IsNotOneFamily)
                 {
                     literalLength = 1;
                     return true;
@@ -5089,11 +5089,11 @@ namespace System.Text.RegularExpressions
                     return;
                 }
 
-                if (node.IsOneFamily || node.IsNotoneFamily)
+                if (node.IsOneFamily || node.IsNotOneFamily)
                 {
                     // IndexOf{AnyExcept}(char)
 
-                    if (node.IsNotoneFamily)
+                    if (node.IsNotOneFamily)
                     {
                         negate = !negate;
                     }
@@ -5307,7 +5307,7 @@ namespace System.Text.RegularExpressions
             RegexNode root = _regexTree!.Root.Child(0);
             Label returnLabel = DefineLabel();
 
-            if (root.Kind is RegexNodeKind.Multi or RegexNodeKind.One or RegexNodeKind.Notone or RegexNodeKind.Set)
+            if (root.Kind is RegexNodeKind.Multi or RegexNodeKind.One or RegexNodeKind.NotOne or RegexNodeKind.Set)
             {
                 // If the whole expression is just one or more characters, we can rely on the FindOptimizations spitting out
                 // an IndexOf that will find the exact sequence or not, and we don't need to do additional checking beyond that.
@@ -5332,7 +5332,7 @@ namespace System.Text.RegularExpressions
                 Ldloc(end);
                 Stfld(s_runtextposField);
 
-                // base.Capture(0, start, end);
+                // base.CaptureGroup(0, start, end);
                 Ldthis();
                 Ldc(0);
                 Ldloc(start);

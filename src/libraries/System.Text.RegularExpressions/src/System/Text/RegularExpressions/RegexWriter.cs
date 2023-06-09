@@ -310,7 +310,7 @@ namespace System.Text.RegularExpressions
                     break;
 
                 case RegexNodeKind.Loop | BeforeChild:
-                case RegexNodeKind.Lazyloop | BeforeChild:
+                case RegexNodeKind.LazyLoop | BeforeChild:
 
                     if (node.N < int.MaxValue || node.M > 1)
                         Emit(node.M == 0 ? RegexOpcode.Nullcount : RegexOpcode.Setcount, node.M == 0 ? 0 : 1 - node.M);
@@ -326,7 +326,7 @@ namespace System.Text.RegularExpressions
                     break;
 
                 case RegexNodeKind.Loop | AfterChild:
-                case RegexNodeKind.Lazyloop | AfterChild:
+                case RegexNodeKind.LazyLoop | AfterChild:
                     {
                         int StartJumpPos = _emitted.Length;
                         int Lazy = (nodeType - (RegexNodeKind.Loop | AfterChild));
@@ -341,11 +341,11 @@ namespace System.Text.RegularExpressions
                     }
                     break;
 
-                case RegexNodeKind.Capture | BeforeChild:
+                case RegexNodeKind.CaptureGroup | BeforeChild:
                     Emit(RegexOpcode.Setmark);
                     break;
 
-                case RegexNodeKind.Capture | AfterChild:
+                case RegexNodeKind.CaptureGroup | AfterChild:
                     Emit(RegexOpcode.Capturemark, RegexParser.MapCaptureNumber(node.M, _tree.CaptureNumberSparseMapping), RegexParser.MapCaptureNumber(node.N, _tree.CaptureNumberSparseMapping));
                     break;
 
@@ -371,29 +371,29 @@ namespace System.Text.RegularExpressions
                     Emit(RegexOpcode.Forejump);
                     break;
 
-                case RegexNodeKind.Atomic | BeforeChild:
+                case RegexNodeKind.AtomicGroup | BeforeChild:
                     Emit(RegexOpcode.Setjump);
                     break;
 
-                case RegexNodeKind.Atomic | AfterChild:
+                case RegexNodeKind.AtomicGroup | AfterChild:
                     Emit(RegexOpcode.Forejump);
                     break;
 
                 case RegexNodeKind.One:
-                case RegexNodeKind.Notone:
+                case RegexNodeKind.NotOne:
                     Emit((RegexOpcode)node.Kind | bits, node.Ch);
                     break;
 
-                case RegexNodeKind.Notoneloop:
-                case RegexNodeKind.Notoneloopatomic:
-                case RegexNodeKind.Notonelazy:
-                case RegexNodeKind.Oneloop:
-                case RegexNodeKind.Oneloopatomic:
-                case RegexNodeKind.Onelazy:
+                case RegexNodeKind.LoopNotOne:
+                case RegexNodeKind.AtomicLoopNotOne:
+                case RegexNodeKind.LazyLoopNotOne:
+                case RegexNodeKind.LoopOne:
+                case RegexNodeKind.AtomicLoopOne:
+                case RegexNodeKind.LazyLoopOne:
                     if (node.M > 0)
                     {
-                        Emit(((node.Kind is RegexNodeKind.Oneloop or RegexNodeKind.Oneloopatomic or RegexNodeKind.Onelazy) ?
-                              RegexOpcode.Onerep : RegexOpcode.Notonerep) | bits, node.Ch, node.M);
+                        Emit(((node.Kind is RegexNodeKind.LoopOne or RegexNodeKind.AtomicLoopOne or RegexNodeKind.LazyLoopOne) ?
+                              RegexOpcode.RepeatOne : RegexOpcode.RepeatNotOne) | bits, node.Ch, node.M);
                     }
                     if (node.N > node.M)
                     {
@@ -401,14 +401,14 @@ namespace System.Text.RegularExpressions
                     }
                     break;
 
-                case RegexNodeKind.Setloop:
-                case RegexNodeKind.Setloopatomic:
-                case RegexNodeKind.Setlazy:
+                case RegexNodeKind.LoopSet:
+                case RegexNodeKind.AtomicLoopSet:
+                case RegexNodeKind.LazyLoopSet:
                     {
                         int stringCode = StringCode(node.Str!);
                         if (node.M > 0)
                         {
-                            Emit(RegexOpcode.Setrep | bits, stringCode, node.M);
+                            Emit(RegexOpcode.RepeatSet | bits, stringCode, node.M);
                         }
                         if (node.N > node.M)
                         {
