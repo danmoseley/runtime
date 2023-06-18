@@ -91,7 +91,7 @@ namespace System.Text.RegularExpressions.Tests
         }
 
         [Theory]
-        [InlineData(0x800)]
+        [InlineData(0x1000)]
         public async Task Diagnostic_InvalidRegexOptions(int options)
         {
             IReadOnlyList<Diagnostic> diagnostics = await RegexGeneratorHelper.RunGenerator(@$"
