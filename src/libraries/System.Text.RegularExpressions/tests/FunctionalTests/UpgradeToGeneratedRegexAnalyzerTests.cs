@@ -1076,7 +1076,7 @@ public class A
 {
     public void Foo()
     {
-        Regex regex = [|new Regex(""pattern"", (RegexOptions)0x0800)|];
+        Regex regex = [|new Regex(""pattern"", (RegexOptions)0x1000)|];
     }
 }
 ";
@@ -1089,7 +1089,7 @@ public partial class A
         Regex regex = MyRegex();
     }
 
-    [GeneratedRegex(""pattern"", (RegexOptions)(2048))]
+    [GeneratedRegex(""pattern"", (RegexOptions)(4096))]
     private static partial Regex MyRegex();
 }
 ";
@@ -1106,7 +1106,7 @@ public class A
 {
     public void Foo()
     {
-        const RegexOptions MyOptions = (RegexOptions)0x0800;
+        const RegexOptions MyOptions = (RegexOptions)0x1000;
         Regex regex = [|new Regex(""pattern"", MyOptions)|];
     }
 }
@@ -1117,11 +1117,11 @@ public partial class A
 {
     public void Foo()
     {
-        const RegexOptions MyOptions = (RegexOptions)0x0800;
+        const RegexOptions MyOptions = (RegexOptions)0x1000;
         Regex regex = MyRegex();
     }
 
-    [GeneratedRegex(""pattern"", (RegexOptions)(2048))]
+    [GeneratedRegex(""pattern"", (RegexOptions)(4096))]
     private static partial Regex MyRegex();
 }
 ";
