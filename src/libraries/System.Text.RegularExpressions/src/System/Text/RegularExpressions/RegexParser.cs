@@ -396,17 +396,15 @@ namespace System.Text.RegularExpressions
                         break;
 
                     case '^':
-                        _unit = new RegexNode(UseOptionM() ? RegexNodeKind.Bol : RegexNodeKind.Beginning, _options);
+                        _unit = GetNodeForCaret();
                         break;
 
                     case '$':
-                        _unit = new RegexNode(UseOptionM() ? RegexNodeKind.Eol : RegexNodeKind.EndZ, _options);
+                        _unit = GetNodeForDollar();
                         break;
 
                     case '.':
-                        _unit = UseOptionS() ?
-                            new RegexNode(RegexNodeKind.Set, _options & ~RegexOptions.IgnoreCase, RegexCharClass.AnyClass) :
-                            new RegexNode(RegexNodeKind.Notone, _options & ~RegexOptions.IgnoreCase, '\n');
+                        _unit = GetNodeForWildcard();
                         break;
 
                     case '{':
@@ -517,6 +515,21 @@ namespace System.Text.RegularExpressions
             return _unit!.FinalOptimize();
         }
 
+        private RegexNode GetNodeForCaret()
+        {
+            return new RegexNode(UseOptionM() ? RegexNodeKind.Bol : RegexNodeKind.Beginning, _options);
+        }
+
+        private RegexNode GetNodeForDollar()
+        {
+            return new RegexNode(UseOptionM() ? RegexNodeKind.Eol : RegexNodeKind.EndZ, _options);
+        }
+
+        private RegexNode GetNodeForWildcard()
+        {
+            return UseOptionS() ? new RegexNode(RegexNodeKind.Set, _options & ~RegexOptions.IgnoreCase, RegexCharClass.AnyClass) :
+                    new RegexNode(RegexNodeKind.Notone, _options & ~RegexOptions.IgnoreCase, '\n');
+        }
         /*
          * Simple parsing for replacement patterns
          */
