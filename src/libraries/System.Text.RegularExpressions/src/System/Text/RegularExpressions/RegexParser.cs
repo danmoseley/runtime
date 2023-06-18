@@ -2080,6 +2080,8 @@ namespace System.Text.RegularExpressions
         /// <summary>True if E option enabling ECMAScript behavior is on.</summary>
         private bool UseOptionE() => (_options & RegexOptions.ECMAScript) != 0;
 
+        private bool UseOptionA() => (_options & RegexOptions.AnyNewLine) != 0;
+
         private const byte Q = 5;    // quantifier
         private const byte S = 4;    // ordinary stopper
         private const byte Z = 3;    // ScanBlank stopper
