@@ -530,6 +530,11 @@ namespace System.Text.RegularExpressions
             return UseOptionS() ? new RegexNode(RegexNodeKind.Set, _options & ~RegexOptions.IgnoreCase, RegexCharClass.AnyClass) :
                     new RegexNode(RegexNodeKind.Notone, _options & ~RegexOptions.IgnoreCase, '\n');
         }
+
+        private RegexNode GetNodeForBigZ()
+        {
+            return new RegexNode(RegexNodeKind.EndZ, _options);
+        }
         /*
          * Simple parsing for replacement patterns
          */
@@ -1177,11 +1182,15 @@ namespace System.Text.RegularExpressions
                 case 'B':
                 case 'A':
                 case 'G':
-                case 'Z':
                 case 'z':
                     MoveRight();
                     return scanOnly ? null :
                         new RegexNode(TypeFromCode(ch), _options);
+
+                case 'Z':
+                    MoveRight();
+                    return scanOnly ? null :
+                       GetNodeForBigZ();
 
                 case 'w':
                     MoveRight();
@@ -1773,7 +1782,6 @@ namespace System.Text.RegularExpressions
                 'B' => UseOptionE() ? RegexNodeKind.NonECMABoundary : RegexNodeKind.NonBoundary,
                 'A' => RegexNodeKind.Beginning,
                 'G' => RegexNodeKind.Start,
-                'Z' => RegexNodeKind.EndZ,
                 'z' => RegexNodeKind.End,
                 _ => RegexNodeKind.Nothing,
             };
