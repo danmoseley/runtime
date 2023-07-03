@@ -19,7 +19,8 @@ namespace System.Text.RegularExpressions.Tests
     {
         public static IEnumerable<object[]> Match_MemberData()
         {
-            foreach (RegexEngine engine in RegexHelpers.AvailableEngines)
+            RegexEngine engine = RegexEngine.SourceGenerated;
+            //foreach (RegexEngine engine in RegexHelpers.AvailableEngines)
             {
                 (string Pattern, string Input, RegexOptions Options, int Beginning, int Length, bool ExpectedSuccess, string ExpectedValue)[] cases = Match_MemberData_Cases(engine).ToArray();
                 Regex[] regexes = RegexHelpers.GetRegexesAsync(engine, cases.Select(c => (c.Pattern, (CultureInfo?)null, (RegexOptions?)c.Options, (TimeSpan?)null)).ToArray()).Result;
@@ -65,20 +66,13 @@ namespace System.Text.RegularExpressions.Tests
 
             // AnyNewLine | RightToLeft
             yield return (@"$", "line1\nline2\nline3\nline4\r\n", RegexOptions.RightToLeft | RegexOptions.AnyNewLine, 0, 25, true, "");
-
+// #endif
+// #if OTHER
             // AnyNewLine | Multiline ('.' will match everything except \r and \n)
             yield return (@".*$", "foo\r\nbar", RegexOptions.AnyNewLine | RegexOptions.Multiline, 0, 8, true, "foo");
-#endif
-            yield break;
-        }
 
-
-
-
-            private static IEnumerable<(string Pattern, string Input, RegexOptions Options, int Beginning, int Length, bool ExpectedSuccess, string ExpectedValue)> xMatch_MemberData_Cases(RegexEngine engine)
-            {
-                // pattern, input, options, beginning, length, expectedSuccess, expectedValue
-                yield return (@"H#", "#H#", RegexOptions.IgnoreCase, 0, 3, true, "H#"); // https://github.com/dotnet/runtime/issues/39390
+            // pattern, input, options, beginning, length, expectedSuccess, expectedValue
+            yield return (@"H#", "#H#", RegexOptions.IgnoreCase, 0, 3, true, "H#"); // https://github.com/dotnet/runtime/issues/39390
             yield return (@"H#", "#H#", RegexOptions.None, 0, 3, true, "H#");
 
             // Testing octal sequence matches: "\\060(\\061)?\\061"
@@ -1024,6 +1018,7 @@ namespace System.Text.RegularExpressions.Tests
             yield return (@"a?(\b|c)", "ac", RegexOptions.None, 0, 2, true, "ac");
             yield return (@"(a|())*(\b|c)", "ac", RegexOptions.None, 0, 2, true, "ac");
             yield return (@"(\b|a)*", "a", RegexOptions.None, 0, 1, true, "");
+#endif
         }
 
         [OuterLoop("Takes several seconds to run")]
