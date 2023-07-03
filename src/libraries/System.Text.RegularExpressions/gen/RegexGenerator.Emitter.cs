@@ -2903,6 +2903,7 @@ namespace System.Text.RegularExpressions.Generator
                 }
                 else
                 {
+                    Debug.Assert(expr != "true");
                     string clause =
                         !emitLengthCheck ? $"if ({expr})" :
                         !rtl ? $"if ({SpanLengthCheck(1, offset)} || {expr})" :
@@ -3915,6 +3916,7 @@ namespace System.Text.RegularExpressions.Generator
                         }
 
                         string maxClause = maxIterations != int.MaxValue ? $"{CountIsLessThan(iterationLocal, maxIterations)} && " : "";
+                        Debug.Assert(expr != "false");
                         using (EmitBlock(writer, $"while ({maxClause}pos > {iterationLocal} && {expr})"))
                         {
                             writer.WriteLine($"{iterationLocal}++;");
@@ -3971,6 +3973,7 @@ namespace System.Text.RegularExpressions.Generator
                     sliceStaticPos = 0;
 
                     string maxClause = maxIterations != int.MaxValue ? $"{CountIsLessThan(iterationLocal, maxIterations)} && " : "";
+                    Debug.Assert(expr != "false");
                     using (EmitBlock(writer, $"while ({maxClause}(uint){iterationLocal} < (uint){sliceSpan}.Length && {expr})"))
                     {
                         writer.WriteLine($"{iterationLocal}++;");
@@ -4032,6 +4035,7 @@ namespace System.Text.RegularExpressions.Generator
                     sliceStaticPos != 0 ? $"(uint){sliceSpan}.Length > (uint){sliceStaticPos}" :
                     $"!{sliceSpan}.IsEmpty";
 
+                Debug.Assert(expr != "false");
                 using (EmitBlock(writer, $"if ({spaceAvailable} && {expr})"))
                 {
                     if (!rtl)
