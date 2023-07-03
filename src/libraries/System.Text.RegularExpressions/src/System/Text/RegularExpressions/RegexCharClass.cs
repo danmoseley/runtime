@@ -1809,7 +1809,7 @@ namespace System.Text.RegularExpressions
         /// <summary>
         /// Produces a human-readable description for a set string.
         /// </summary>
-        public static string DescribeSet(string set)
+        public static string DescribeSet(string set, RegexOptions options = RegexOptions.None)
         {
             int setLength = set[SetLengthIndex];
             int categoryLength = set[CategoryLengthIndex];
@@ -1879,7 +1879,8 @@ namespace System.Text.RegularExpressions
                 index++;
                 desc.Append('^');
                 RenderRanges();
-                return desc.Append(']').ToString();
+                string result = desc.Append(']').ToString();
+                return (result == "[^]" && ((options & RegexOptions.Singleline) != 0)) ? "." : result;
             }
 
             if (negated)

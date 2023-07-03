@@ -2937,7 +2937,7 @@ namespace System.Text.RegularExpressions
                 case RegexNodeKind.Setloop:
                 case RegexNodeKind.Setloopatomic:
                 case RegexNodeKind.Setlazy:
-                    sb.Append(' ').Append(RegexCharClass.DescribeSet(Str!));
+                    sb.Append(' ').Append(RegexCharClass.DescribeSet(Str!, Options));
                     break;
             }
 
