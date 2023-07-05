@@ -6,7 +6,7 @@
       to enable the nullable reference type compiler checks, we also target NetCoreAppToolCurrent. Note that
       this doesn't use the live shared framework but an LKG targeting pack instead to avoid layering concerns.
     -->
-    <TargetFrameworks>netstandard2.0;$(NetCoreAppToolCurrent)</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0;</TargetFrameworks>
     <EnableDefaultItems>true</EnableDefaultItems>
     <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
     <UsingToolXliff>true</UsingToolXliff>
