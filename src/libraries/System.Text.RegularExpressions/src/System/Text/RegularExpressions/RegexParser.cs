@@ -395,9 +395,12 @@ namespace System.Text.RegularExpressions
                         break;
 
                     case '.':
-                        _unit = (_options & RegexOptions.Singleline) != 0 ?
-                            new RegexNode(RegexNodeKind.Set, _options & ~RegexOptions.IgnoreCase, RegexCharClass.AnyClass) :
-                            new RegexNode(RegexNodeKind.Notone, _options & ~RegexOptions.IgnoreCase, '\n');
+                        _unit = (UseOptionS(), UseOptionA()) switch
+                        {
+                            (true, _) => new RegexNode(RegexNodeKind.Set, _options & ~RegexOptions.IgnoreCase, RegexCharClass.AnyClass), // Singleline - match everything
+                            (false, true) => new RegexNode(RegexNodeKind.Set, _options & ~RegexOptions.IgnoreCase, RegexCharClass.NotAnyNewLineClass), // AnyNewLine - match not any new line
+                            (false, false) => new RegexNode(RegexNodeKind.Notone, _options & ~RegexOptions.IgnoreCase, '\n')  // Not AnyNewLine -- match not \n
+                        };
                         break;
 
                     case '{':
