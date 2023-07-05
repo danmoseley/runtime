@@ -50,6 +50,7 @@ namespace System.Text.RegularExpressions
             {
                 TrailingAnchor = RegexPrefixAnalyzer.FindTrailingAnchor(root);
                 if (TrailingAnchor is RegexNodeKind.End or RegexNodeKind.EndZ &&
+                    (options & RegexOptions.AnyNewLine) == 0 &&
                     root.ComputeMaxLength() is int maxLength)
                 {
                     Debug.Assert(maxLength >= MinRequiredLength, $"{maxLength} should have been greater than {MinRequiredLength} minimum");

@@ -1049,6 +1049,7 @@ namespace System.Text.RegularExpressions.Generator
                 int setIndex = 0;
                 bool canUseIndexOf =
                     primarySet.Set != RegexCharClass.NotNewLineClass &&
+                    primarySet.Set != RegexCharClass.NotAnyNewLineClass &&
                     primarySet.Set != RegexCharClass.AnyClass;
                 bool needLoop = !canUseIndexOf || setsToUse > 1;
 
@@ -3038,18 +3039,26 @@ namespace System.Text.RegularExpressions.Generator
                         break;
 
                     case RegexNodeKind.EndZ:
-                        using (EmitBlock(writer, sliceStaticPos > 0 ?
-                            $"if ({sliceStaticPos + 1} < {sliceSpan}.Length || ({sliceStaticPos} < {sliceSpan}.Length && {sliceSpan}[{sliceStaticPos}] != '\\n'))" :
-                            "if (pos < inputSpan.Length - 1 || ((uint)pos < (uint)inputSpan.Length && inputSpan[pos] != '\\n'))"))
+                        string clause = (rm.OptionA, sliceStaticPos > 0) switch
+                        {
+                            (false, true) => $"if ({sliceStaticPos + 1} < {sliceSpan}.Length || ({sliceStaticPos} < {sliceSpan}.Length && {sliceSpan}[{sliceStaticPos}] != '\\n'))",
+                            (false, false) => "if (pos < inputSpan.Length - 1 || ((uint)pos < (uint)inputSpan.Length && inputSpan[pos] != '\\n'))",
+                            (true, true) =>  $"if ({sliceStaticPos} < {sliceSpan}.Length - 2 || (({sliceStaticPos} == {sliceSpan}.Length - 1 && {sliceSpan}[{sliceStaticPos}] != '\\n')" +
+                                             $" && ({sliceStaticPos} == {sliceSpan}.Length - 2 && ({sliceSpan}[{sliceStaticPos}] != '\\r' || {sliceSpan}[{sliceStaticPos + 1}] != '\\n'))))",
+                            (true, false) => "if (pos < inputSpan.Length - 2 || (((uint)pos < (uint)inputSpan.Length && inputSpan[pos] != '\\n')" +
+                                             " && ((uint)pos < (uint)(inputSpan.Length - 1) && inputSpan[pos] != '\\r && inputSpan[pos + 1] != '\\n')))"
+                        };
+                        using (EmitBlock(writer, clause))
                         {
                             Goto(doneLabel);
                         }
                         break;
 
                     case RegexNodeKind.Eol:
-                        using (EmitBlock(writer, sliceStaticPos > 0 ?
+                        clause = sliceStaticPos > 0 ?
                             $"if ({sliceStaticPos} < {sliceSpan}.Length && {sliceSpan}[{sliceStaticPos}] != '\\n')" :
-                            "if ((uint)pos < (uint)inputSpan.Length && inputSpan[pos] != '\\n')"))
+                            "if ((uint)pos < (uint)inputSpan.Length && inputSpan[pos] != '\\n')";
+                        using (EmitBlock(writer, clause))
                         {
                             Goto(doneLabel);
                         }

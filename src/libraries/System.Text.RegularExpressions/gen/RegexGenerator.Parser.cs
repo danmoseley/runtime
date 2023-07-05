@@ -228,6 +228,7 @@ namespace System.Text.RegularExpressions.Generator
         {
             public string? GeneratedName { get; set; }
             public bool IsDuplicate { get; set; }
+            public bool OptionA => (Options & RegexOptions.AnyNewLine) != 0;
         }
 
         /// <summary>A type holding a regex method.</summary>

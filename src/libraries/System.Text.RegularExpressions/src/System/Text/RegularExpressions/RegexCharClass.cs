@@ -98,7 +98,8 @@ namespace System.Text.RegularExpressions
         internal const string ECMADigitClass = "\x00\x02\x00" + ECMADigitRanges;
         internal const string NotECMADigitClass = "\x01\x02\x00" + ECMADigitRanges;
 
-        internal const string NotNewLineClass = "\x01\x02\x00\x0A\x0B";
+        internal const string NotNewLineClass = "\x01\x02\x00\x0A\x0B"; // [^\n]
+        internal const string NotAnyNewLineClass = "\x01\x04\x00\x0A\x0B\x0D\x0E"; // [^\r\n]
 
         internal const string AnyClass = "\x00\x01\x00\x00";
         private const string EmptyClass = "\x00\x00\x00";
