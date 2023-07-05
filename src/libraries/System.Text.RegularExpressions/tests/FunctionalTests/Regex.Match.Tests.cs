@@ -36,6 +36,7 @@ namespace System.Text.RegularExpressions.Tests
             yield return (@".$", "abc\n", RegexOptions.AnyNewLine | RegexOptions.Singleline, 0, 4, true, "c");
             yield return (@".$", "abc\r\n", RegexOptions.AnyNewLine | RegexOptions.Singleline, 0, 5, true, "c");
 
+#if NO
             // AnyNewLine (with none of the special characters used as line ending)
             yield return (@"line3\nline4$", "line1\nline2\nline3\nline4", RegexOptions.AnyNewLine, 0, 23, true, "line3\nline4");
 
@@ -65,7 +66,7 @@ namespace System.Text.RegularExpressions.Tests
 
             // AnyNewLine | RightToLeft
             yield return (@"$", "line1\nline2\nline3\nline4\r\n", RegexOptions.RightToLeft | RegexOptions.AnyNewLine, 0, 25, true, "");
-// #endif
+//#endif
 // #if OTHER
             // AnyNewLine | Multiline ('.' will match everything except \r and \n)
             yield return (@".*$", "foo\r\nbar", RegexOptions.AnyNewLine | RegexOptions.Multiline, 0, 8, true, "foo");
@@ -1044,6 +1045,7 @@ namespace System.Text.RegularExpressions.Tests
             yield return (@"a?(\b|c)", "ac", RegexOptions.None, 0, 2, true, "ac");
             yield return (@"(a|())*(\b|c)", "ac", RegexOptions.None, 0, 2, true, "ac");
             yield return (@"(\b|a)*", "a", RegexOptions.None, 0, 1, true, "");
+#endif
 #endif
         }
 

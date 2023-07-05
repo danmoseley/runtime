@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 
 namespace System.Text.RegularExpressions
 {
-    /// <summary>Builds a block of regular expression codes (RegexCode) from a RegexTree parse tree.</summary>
+    /// <summary>Builds for the RegexInterpreter a block of regular expression codes (RegexCode) from a RegexTree parse tree.</summary>
     internal ref struct RegexWriter
     {
         // These must be unused RegexNode type bits.
