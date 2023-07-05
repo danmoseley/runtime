@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -294,7 +295,27 @@ namespace System.Text.RegularExpressions.Generator
                 writer.WriteLine($"}}");
 
                 // Save out the source
-                context.AddSource("RegexGenerator.g.cs", sw.ToString());
+
+                string code = sw.ToString();
+                string name = "RegexGenerator.g.cs";
+
+                // Un if-def below to get a better breakpoint experience.
+                // Normally the file name chosen here is arbitrary.
+                // However when debugging the generated code, you may want to both
+                // (1) use a file on disk for convenience of persisting breakpoints and
+                // (2) have several such files for distinct patterns in the same folder
+                // The debugger will require the file has the name we choose here.
+                // We can make all this possible by including a simple hash of the content.
+#if false
+#pragma warning disable CA1850 // CA1850: Prefer static 'System.Security.Cryptography.SHA256.HashData' method over 'ComputeHash' -- We are building for netstandard20 as well
+                using SHA256 sha = SHA256.Create();
+                byte[] bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(code));
+#pragma warning restore CA1850
+                string hash = BitConverter.ToString(bytes, 0, 10).Replace("-", "");
+                name = "RegexGenerator." + hash + ".g.cs"; // eg: RegexGenerator.EF8A3D025AF13B7F9541.g.cs
+#endif // false
+
+                context.AddSource(name, code);
             });
         }
 
