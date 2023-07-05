@@ -213,6 +213,18 @@ namespace System.Text.RegularExpressions.Tests
 
             // Run the generator
             GeneratorDriverRunResult generatorResults = s_generatorDriver.RunGenerators(comp!, cancellationToken).GetRunResult();
+
+            // Un-ifdef to write out the generated file into temp folder.
+            // This can be convenient if you want to set breakpoints in the output and you want those to
+            // seamlessly rebind between executions of the same generated code.
+#if true
+            GeneratedSourceResult generatorSourceResult = generatorResults.Results[0].GeneratedSources[0];
+            using (var writer = new StreamWriter(Path.Join(Path.GetTempPath(), generatorSourceResult.HintName), append: false, generatorSourceResult.SourceText.Encoding))
+            {
+                generatorSourceResult.SourceText.Write(writer);
+            }
+#endif
+
             ImmutableArray<Diagnostic> generatorDiagnostics = generatorResults.Diagnostics.RemoveAll(d => d.Severity <= DiagnosticSeverity.Hidden);
             if (generatorDiagnostics.Length != 0)
             {
