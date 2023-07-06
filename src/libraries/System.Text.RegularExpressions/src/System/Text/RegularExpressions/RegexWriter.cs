@@ -39,7 +39,7 @@ namespace System.Text.RegularExpressions
             _tree = tree;
             _emitted = new ValueListBuilder<int>(emittedSpan);
             _intStack = new ValueListBuilder<int>(intStackSpan);
-            _stringTable = new Dictionary<string, int>();
+            _stringTable = new Dictionary<string, int>(15); // avoids resize for 90% of real world patterns
             _trackCount = 0;
         }
 
