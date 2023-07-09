@@ -395,7 +395,7 @@ namespace System.Text.RegularExpressions
                         break;
 
                     case '.':
-                        _unit = (UseOptionS(), UseOptionA()) switch
+                        _unit = ((_options & RegexOptions.Singleline) != 0, (_options & RegexOptions.AnyNewLine) != 0) switch
                         {
                             (true, _) => new RegexNode(RegexNodeKind.Set, _options & ~RegexOptions.IgnoreCase, RegexCharClass.AnyClass), // Singleline - match everything
                             (false, true) => new RegexNode(RegexNodeKind.Set, _options & ~RegexOptions.IgnoreCase, RegexCharClass.NotAnyNewLineClass), // AnyNewLine - match not any new line
