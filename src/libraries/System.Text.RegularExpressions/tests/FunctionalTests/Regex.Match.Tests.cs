@@ -1135,7 +1135,8 @@ namespace System.Text.RegularExpressions.Tests
 
             void VerifyMatch(Match match)
             {
-                Assert.Equal(expectedSuccess, match.Success);
+                if (expectedSuccess != match.Success)
+                    throw new XunitException(expectedSuccess ? $"Expected to match" : "Expected to fail to match"); // slightly less verbose than Assert.Equals when there are many failures
                 RegexAssert.Equal(expectedValue, match);
 
                 // Groups can never be empty
