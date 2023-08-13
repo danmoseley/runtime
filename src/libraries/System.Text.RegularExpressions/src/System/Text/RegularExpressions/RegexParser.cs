@@ -398,7 +398,7 @@ namespace System.Text.RegularExpressions
                         _unit = ((_options & RegexOptions.Singleline) != 0, (_options & RegexOptions.AnyNewLine) != 0) switch
                         {
                             (true, _) => new RegexNode(RegexNodeKind.Set, _options & ~RegexOptions.IgnoreCase, RegexCharClass.AnyClass), // Singleline - match everything
-                            (false, true) => new RegexNode(RegexNodeKind.Set, _options & ~RegexOptions.IgnoreCase, RegexCharClass.NotAnyNewLineClass), // AnyNewLine - match not any new line
+                            (false, true) => new RegexNode(RegexNodeKind.Set, _options & ~RegexOptions.IgnoreCase, RegexCharClass.NotAnyNewLineClass), // AnyNewLine - match not any new line TODO we want this to match "\r\n" atomically
                             (false, false) => new RegexNode(RegexNodeKind.Notone, _options & ~RegexOptions.IgnoreCase, '\n')  // Not AnyNewLine -- match not \n
                         };
                         break;
