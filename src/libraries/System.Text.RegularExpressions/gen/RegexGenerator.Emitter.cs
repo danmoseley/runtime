@@ -3066,12 +3066,12 @@ namespace System.Text.RegularExpressions.Generator
                         indent = new string(' ', 28);
                         clause = (rm.OptionA, sliceStaticPos > 0) switch
                         {
-                            (false, false) => "if ((uint)pos < (uint)inputSpan.Length && inputSpan[pos] != '\\n')) // next char is not \\n",
+                            (false, false) => "if ((uint)pos < (uint)inputSpan.Length && inputSpan[pos] != '\\n') // next char is not \\n",
 
                             (true, false) => "if (((uint)pos < (uint)(inputSpan.Length) && inputSpan[pos] != '\\n') && // next char is not \\n, and\n" +
                                              indent + "((uint)pos < (uint)(inputSpan.Length - 1) && (inputSpan[pos] != '\\r' || inputSpan[pos + 1] != '\\n'))) // next two chars are not \\r\\n",
 
-                            (false, true) => $"if ({sliceStaticPos} < {sliceSpan}.Length && {sliceSpan}[{sliceStaticPos}] != '\\n')) // next char is not \\n",
+                            (false, true) => $"if ({sliceStaticPos} < {sliceSpan}.Length && {sliceSpan}[{sliceStaticPos}] != '\\n') // next char is not \\n",
 
                             (true, true) => $"if (({sliceStaticPos + 1} == {sliceSpan}.Length && {sliceSpan}[{sliceStaticPos}] != '\\n') && // next char is not \\n, and\n" +
                                              indent + $"({sliceStaticPos + 2} == {sliceSpan}.Length && ({sliceSpan}[{sliceStaticPos}] != '\\r' || {sliceSpan}[{sliceStaticPos + 1}] != '\\n'))) // next two chars are not \\r\\n",
