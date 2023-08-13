@@ -1,4 +1,4 @@
-// Licensed to the .NET Foundation under one or more agreements.
+ // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.IO;
@@ -340,7 +340,7 @@ namespace System.Formats.Tar.Tests
             AssertFileModeEquals(filePath, TestPermission1);
         }
 
-        [Fact]
+        [ConditionalFact(typeof(MountHelper), nameof(MountHelper.CanCreateSymbolicLinks))]
         public void LinkBeforeTarget()
         {
             using TempDirectory source = new TempDirectory();
