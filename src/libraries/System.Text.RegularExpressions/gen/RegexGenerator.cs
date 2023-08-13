@@ -297,11 +297,12 @@ namespace System.Text.RegularExpressions.Generator
                 // Save out the source
                 string name = "RegexGenerator.g.cs";
                 string code = sw.ToString();
-#if false
+#if true
                 // Mostly the file name chosen here is arbitrary.
                 // However when debugging the generated code, you may want to both
                 // (1) use a file on disk for convenience of persisting breakpoints and
                 // (2) have several such files for distinct patterns in the same folder
+                // Or you may want to emit each pattern into its own file, so you need them to avoid overwriting each other.
                 // The debugger will require the file has the name we choose here.
                 // We make all this possible by including in the ane a simple hash of the content.
                 using SHA256 sha = SHA256.Create();

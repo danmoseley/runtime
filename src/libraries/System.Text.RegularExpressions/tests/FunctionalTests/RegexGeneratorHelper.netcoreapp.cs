@@ -139,7 +139,7 @@ namespace System.Text.RegularExpressions.Tests
         {
             // Un-ifdef to compile each regex individually, which can be useful if one regex among thousands is causing a failure.
             // We compile them all en mass for test efficiency, but it can make it harder to debug a compilation failure in one of them.
-#if false
+#if true
             if (regexes.Length > 1)
             {
                 var r = new List<Regex>();
@@ -219,7 +219,6 @@ namespace System.Text.RegularExpressions.Tests
             // seamlessly rebind between executions of the same generated code.
             // Or you simply want to watch the file in your editor.
 #if true
-#if DEBUG
             GeneratedSourceResult generatorSourceResult = generatorResults.Results[0].GeneratedSources[0];
             string folder = Path.Join(Path.GetTempPath(), "RegexTests");
             Directory.CreateDirectory(folder);
@@ -227,7 +226,6 @@ namespace System.Text.RegularExpressions.Tests
             {
                 generatorSourceResult.SourceText.Write(writer);
             }
-#endif
 #endif
             ImmutableArray<Diagnostic> generatorDiagnostics = generatorResults.Diagnostics.RemoveAll(d => d.Severity <= DiagnosticSeverity.Hidden);
             if (generatorDiagnostics.Length != 0)
@@ -245,8 +243,9 @@ namespace System.Text.RegularExpressions.Tests
             if (!results.Success || resultsDiagnostics.Length != 0)
             {
                 throw new ArgumentException(
-                    string.Join(Environment.NewLine, generatorResults.GeneratedTrees.Select(t => NumberLines(t.ToString()))) + Environment.NewLine +
-                    string.Join(Environment.NewLine, resultsDiagnostics.Concat(generatorDiagnostics)));
+                    string.Join(Environment.NewLine, resultsDiagnostics.Concat(generatorDiagnostics)) + Environment.NewLine + // errors first, as vstest will truncate very large messages, and we want to at least see those
+                    string.Join(Environment.NewLine, generatorResults.GeneratedTrees.Select(t => NumberLines(t.ToString()))));
+
             }
             dll.Position = 0;
 
