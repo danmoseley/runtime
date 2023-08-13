@@ -3041,12 +3041,19 @@ namespace System.Text.RegularExpressions.Generator
                     case RegexNodeKind.EndZ:
                         string clause = (rm.OptionA, sliceStaticPos > 0) switch
                         {
-                            (false, true) => $"if ({sliceStaticPos + 1} < {sliceSpan}.Length || ({sliceStaticPos} < {sliceSpan}.Length && {sliceSpan}[{sliceStaticPos}] != '\\n'))",
-                            (false, false) => "if (pos < inputSpan.Length - 1 || ((uint)pos < (uint)inputSpan.Length && inputSpan[pos] != '\\n'))",
-                            (true, true) =>  $"if ({sliceStaticPos} < {sliceSpan}.Length - 2 || (({sliceStaticPos} == {sliceSpan}.Length - 1 && {sliceSpan}[{sliceStaticPos}] != '\\n')" +
-                                             $" && ({sliceStaticPos} == {sliceSpan}.Length - 2 && ({sliceSpan}[{sliceStaticPos}] != '\\r' || {sliceSpan}[{sliceStaticPos + 1}] != '\\n'))))",
-                            (true, false) => "if (pos < inputSpan.Length - 2 || (((uint)pos < (uint)inputSpan.Length && inputSpan[pos] != '\\n')" +
-                                             " && ((uint)pos < (uint)(inputSpan.Length - 1) && inputSpan[pos] != '\\r && inputSpan[pos + 1] != '\\n')))"
+                            (false, false) => "if (pos < inputSpan.Length - 1 || // if more than 1 char following, or\n" +
+                                              "                        ((uint)pos < (uint)inputSpan.Length && inputSpan[pos] != '\\n')) // there's 1 char following and it's not \\n",
+
+                            (true, false) => "if (pos < inputSpan.Length - 2 || // if more than 2 chars following, or\n" +
+                                             "                        ((uint)pos < (uint)(inputSpan.Length)     && inputSpan[pos] != '\\n') || // there's 1 char following and it's not \\n, or\n" +
+                                             "                        ((uint)pos < (uint)(inputSpan.Length - 1) && (inputSpan[pos] != '\\r || inputSpan[pos + 1] != '\\n'))) // there's 2 chars following and they're not \\r\\n",
+
+                            (false, true) => $"if ({sliceStaticPos + 1} < {sliceSpan}.Length || // if more than 1 char following, or\n" +
+                                             $"                        ({sliceStaticPos} < {sliceSpan}.Length && {sliceSpan}[{sliceStaticPos}] != '\\n')) // there's 1 char following and it's not \\n",
+
+                            (true, true) =>  $"if ({sliceStaticPos + 2} < {sliceSpan}.Length || // if more than 2 chars following, or\n" +
+                                             $"                        ({sliceStaticPos + 1} == {sliceSpan}.Length && {sliceSpan}[{sliceStaticPos}] != '\\n') || // there's 1 char following and it's not \\n, or\n" +
+                                             $"                        ({sliceStaticPos + 2} == {sliceSpan}.Length && ({sliceSpan}[{sliceStaticPos}] != '\\r' || {sliceSpan}[{sliceStaticPos + 1}] != '\\n'))) // there's 2 chars following and they're not \\r\\n",
                         };
                         using (EmitBlock(writer, clause))
                         {
