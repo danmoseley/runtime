@@ -3039,21 +3039,22 @@ namespace System.Text.RegularExpressions.Generator
                         break;
 
                     case RegexNodeKind.EndZ:
+                        string indent = new string(' ', 28);
                         string clause = (rm.OptionA, sliceStaticPos > 0) switch
                         {
                             (false, false) => "if (pos < inputSpan.Length - 1 || // if more than 1 char following, or\n" +
-                                              "                        ((uint)pos < (uint)inputSpan.Length && inputSpan[pos] != '\\n')) // there's 1 char following and it's not \\n",
+                                              indent + "((uint)pos < (uint)inputSpan.Length && inputSpan[pos] != '\\n')) // there's 1 char following and it's not \\n",
 
                             (true, false) => "if (pos < inputSpan.Length - 2 || // if more than 2 chars following, or\n" +
-                                             "                        ((uint)pos < (uint)(inputSpan.Length)     && inputSpan[pos] != '\\n') || // there's 1 char following and it's not \\n, or\n" +
-                                             "                        ((uint)pos < (uint)(inputSpan.Length - 1) && (inputSpan[pos] != '\\r || inputSpan[pos + 1] != '\\n'))) // there's 2 chars following and they're not \\r\\n",
+                                             indent + "((uint)pos < (uint)(inputSpan.Length)     && inputSpan[pos] != '\\n') || // there's 1 char following and it's not \\n, or\n" +
+                                             indent + "((uint)pos < (uint)(inputSpan.Length - 1) && (inputSpan[pos] != '\\r' || inputSpan[pos + 1] != '\\n'))) // there's 2 chars following and they're not \\r\\n",
 
                             (false, true) => $"if ({sliceStaticPos + 1} < {sliceSpan}.Length || // if more than 1 char following, or\n" +
-                                             $"                        ({sliceStaticPos} < {sliceSpan}.Length && {sliceSpan}[{sliceStaticPos}] != '\\n')) // there's 1 char following and it's not \\n",
+                                             indent + $"({sliceStaticPos} < {sliceSpan}.Length && {sliceSpan}[{sliceStaticPos}] != '\\n')) // there's 1 char following and it's not \\n",
 
                             (true, true) =>  $"if ({sliceStaticPos + 2} < {sliceSpan}.Length || // if more than 2 chars following, or\n" +
-                                             $"                        ({sliceStaticPos + 1} == {sliceSpan}.Length && {sliceSpan}[{sliceStaticPos}] != '\\n') || // there's 1 char following and it's not \\n, or\n" +
-                                             $"                        ({sliceStaticPos + 2} == {sliceSpan}.Length && ({sliceSpan}[{sliceStaticPos}] != '\\r' || {sliceSpan}[{sliceStaticPos + 1}] != '\\n'))) // there's 2 chars following and they're not \\r\\n",
+                                             indent + $"({sliceStaticPos + 1} == {sliceSpan}.Length && {sliceSpan}[{sliceStaticPos}] != '\\n') || // there's 1 char following and it's not \\n, or\n" +
+                                             indent + $"({sliceStaticPos + 2} == {sliceSpan}.Length && ({sliceSpan}[{sliceStaticPos}] != '\\r' || {sliceSpan}[{sliceStaticPos + 1}] != '\\n'))) // there's 2 chars following and they're not \\r\\n",
                         };
                         using (EmitBlock(writer, clause))
                         {
@@ -5177,6 +5178,7 @@ namespace System.Text.RegularExpressions.Generator
         private static string DescribeNode(RegexNode node, RegexMethod rm)
         {
             bool rtl = (node.Options & RegexOptions.RightToLeft) != 0;
+            bool anl = (node.Options & RegexOptions.AnyNewLine) != 0;
             string direction = rtl ? " right-to-left" : "";
             return node.Kind switch
             {
@@ -5192,8 +5194,8 @@ namespace System.Text.RegularExpressions.Generator
                 RegexNodeKind.ECMABoundary => $"Match if at a word boundary (according to ECMAScript rules).",
                 RegexNodeKind.Empty => $"Match an empty string.",
                 RegexNodeKind.End => "Match if at the end of the string.",
-                RegexNodeKind.EndZ => "Match if at the end of the string or if before an ending newline.",
-                RegexNodeKind.Eol => "Match if at the end of a line.",
+                RegexNodeKind.EndZ => $"Match if at the end of the string or if before an ending newline{(anl ? " of any kind" : "")}.",
+                RegexNodeKind.Eol => $"Match if before a newline{(anl ? " of any kind" : "")}.",
                 RegexNodeKind.Loop or RegexNodeKind.Lazyloop => node.M == 0 && node.N == 1 ? $"Optional ({(node.Kind is RegexNodeKind.Loop ? "greedy" : "lazy")})." : $"Loop {DescribeLoop(node, rm)}{direction}.",
                 RegexNodeKind.Multi => $"Match the string {Literal(node.Str!)}{direction}.",
                 RegexNodeKind.NonBoundary => $"Match if at anything other than a word boundary.",
