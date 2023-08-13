@@ -217,14 +217,18 @@ namespace System.Text.RegularExpressions.Tests
             // Un-ifdef to write out the generated file into temp folder.
             // This can be convenient if you want to set breakpoints in the output and you want those to
             // seamlessly rebind between executions of the same generated code.
-#if false
+            // Or you simply want to watch the file in your editor.
+#if true
+#if DEBUG
             GeneratedSourceResult generatorSourceResult = generatorResults.Results[0].GeneratedSources[0];
-            using (var writer = new StreamWriter(Path.Join(Path.GetTempPath(), generatorSourceResult.HintName), append: false, generatorSourceResult.SourceText.Encoding))
+            string folder = Path.Join(Path.GetTempPath(), "RegexTests");
+            Directory.CreateDirectory(folder);
+            using (var writer = new StreamWriter(Path.Join(folder, generatorSourceResult.HintName), append: false, generatorSourceResult.SourceText.Encoding))
             {
                 generatorSourceResult.SourceText.Write(writer);
             }
 #endif
-
+#endif
             ImmutableArray<Diagnostic> generatorDiagnostics = generatorResults.Diagnostics.RemoveAll(d => d.Severity <= DiagnosticSeverity.Hidden);
             if (generatorDiagnostics.Length != 0)
             {
