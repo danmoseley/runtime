@@ -20,39 +20,9 @@ updates:
       - dependency-name: "Microsoft.DotNet.SharedFramework.Sdk"
       - dependency-name: "Microsoft.Build.NoTargets"
     groups:
-      Azure:
+      all:
         patterns:
-          - "Azure.*"
-          - "Microsoft.Azure.*"
-          - "Microsoft.Extensions.Azure"
-      AspNetCoreHealthChecks:
-        patterns:
-          - "AspNetCore.HealthChecks.*"
-      AspNetCore:
-        patterns:
-          - "Microsoft.AspNetCore.*"
-          - "Microsoft.Extensions.Features"
-      MicrosoftExtensions:
-        patterns:
-          - "Microsoft.Extensions.*"
-      EntityFrameworkCore:
-        patterns:
-          - "Microsoft.EntityFrameworkCore.*"
-      FluentUi:
-        patterns:
-          - "Microsoft.FluentUI.*"
-      OpenTelemetry:
-        patterns:
-          - "OpenTelemetry.*"
-      Npgsql:
-        patterns:
-          - "Npgsql.*"
-      MicrosoftDotNet:
-        patterns:
-          - "Microsoft.DotNet.*"
-      Grpc:
-        patterns:
-          - "Grpc.*"
+          - "*"
     labels:
       - "area-codeflow"
 
