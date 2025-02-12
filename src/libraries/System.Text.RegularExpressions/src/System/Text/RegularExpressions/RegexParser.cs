@@ -186,9 +186,7 @@ namespace System.Text.RegularExpressions
             return new RegexTree(root, captureCount, parser._capnamelist?.ToArray(), parser._capnames!, sparseMapping, options, parser._hasIgnoreCaseBackreferenceNodes ? culture : null);
         }
 
-        /// <summary>
-        /// This static call constructs a flat concatenation node given a replacement pattern.
-        /// </summary>
+        /// <summary>This static call constructs a flat concatenation node given a replacement pattern.</summary>
         public static RegexReplacement ParseReplacement(string pattern, RegexOptions options, Hashtable caps, int capsize, Hashtable capnames)
         {
 #pragma warning disable RS1035 // The symbol 'CultureInfo.CurrentCulture' is banned for use by analyzers.
@@ -202,9 +200,7 @@ namespace System.Text.RegularExpressions
             return regexReplacement;
         }
 
-        /// <summary>
-        /// Escapes all metacharacters (including |,(,),[,{,|,^,$,*,+,?,\, spaces and #)
-        /// </summary>
+        /// <summary>Escapes all metacharacters (including |,(,),[,{,|,^,$,*,+,?,\, spaces and #)</summary>
         public static string Escape(string input)
         {
             int indexOfMetachar = IndexOfMetachar(input.AsSpan());
