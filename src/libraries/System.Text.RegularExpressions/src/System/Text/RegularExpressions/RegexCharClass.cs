@@ -2027,16 +2027,6 @@ namespace System.Text.RegularExpressions
                 _ => $"\\u{(uint)ch:X4}"
             };
 
-        public static string DescribeString(string s)
-        {
-            StringBuilder sb = new StringBuilder();
-            foreach(char c in s)
-            {
-                sb.Append(DescribeChar(c));
-            }
-            return sb.ToString();
-        }
-
         private static string DescribeCategory(char ch) =>
             (short)ch switch
             {
