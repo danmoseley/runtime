@@ -561,21 +561,13 @@ namespace System.Text.RegularExpressions
             return _unit!.FinalOptimize();
         }
 
-        private RegexNode GetNodeForCaret()
-        {
-            return new RegexNode(UseOptionM() ? RegexNodeKind.Bol : RegexNodeKind.Beginning, _options);
-        }
+        private RegexNode GetNodeForCaret() => new RegexNode(UseOptionM() ? RegexNodeKind.Bol : RegexNodeKind.Beginning, _options);
 
-        private RegexNode GetNodeForDollar()
-        {
-            return new RegexNode(UseOptionM() ? RegexNodeKind.Eol : RegexNodeKind.EndZ, _options);
-        }
+        private RegexNode GetNodeForDollar() => new RegexNode(UseOptionM() ? RegexNodeKind.Eol : RegexNodeKind.EndZ, _options);
 
-        private RegexNode GetNodeForWildcard()
-        {
-            return UseOptionS() ? new RegexNode(RegexNodeKind.Set, _options & ~RegexOptions.IgnoreCase, RegexCharClass.AnyClass) :
+        private RegexNode GetNodeForWildcard() => UseOptionS() ?
+                    new RegexNode(RegexNodeKind.Set, _options & ~RegexOptions.IgnoreCase, RegexCharClass.AnyClass) :
                     new RegexNode(RegexNodeKind.Notone, _options & ~RegexOptions.IgnoreCase, '\n');
-        }
 
         private RegexNode GetNodeForBigZ()
         {
@@ -2029,7 +2021,7 @@ namespace System.Text.RegularExpressions
         }
 
         /// <summary>True if the capture slot was noted</summary>
-        private bool IsCaptureSlot(int i)
+        private readonly bool IsCaptureSlot(int i)
         {
             if (_caps != null)
             {
