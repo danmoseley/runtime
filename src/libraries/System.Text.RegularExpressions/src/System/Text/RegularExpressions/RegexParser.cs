@@ -585,9 +585,9 @@ namespace System.Text.RegularExpressions
         {
             return new RegexNode(RegexNodeKind.EndZ, _options);
         }
-        /*
-         * Simple parsing for replacement patterns
-         */
+
+        /// <summary>Simple parsing for replacement patterns</summary>
+
         private RegexNode ScanReplacement()
         {
             _concatenation = new RegexNode(RegexNodeKind.Concatenate, _options);
@@ -625,10 +625,8 @@ namespace System.Text.RegularExpressions
             return _concatenation;
         }
 
-        /*
-         * Scans contents of [] (not including []'s), and converts to a
-         * RegexCharClass.
-         */
+        /// <summary>Scans contents of [] (not including []'s), and converts to a RegexCharClass</summary>
+
         private RegexCharClass? ScanCharClass(bool caseInsensitive, bool scanOnly)
         {
             char ch;
@@ -840,11 +838,12 @@ namespace System.Text.RegularExpressions
             return charClass;
         }
 
-        /*
-         * Scans chars following a '(' (not counting the '('), and returns
-         * a RegexNode for the type of group scanned, or null if the group
-         * simply changed options (?cimsx-cimsx) or was a comment (#...).
-         */
+        /// <summary>
+        /// Scans chars following a '(' (not counting the '('), and returns
+        /// a RegexNode for the type of group scanned, or null if the group
+        /// simply changed options (?cimsx-cimsx) or was a comment (#...).
+        /// </summary>
+
         private RegexNode? ScanGroupOpen()
         {
             // just return a RegexNode if we have:
@@ -1431,9 +1430,8 @@ namespace System.Text.RegularExpressions
                 null;
         }
 
-        /*
-         * Scans $ patterns recognized within replacement patterns
-         */
+        /// <summary>Scans $ patterns recognized within replacement patterns</summary>
+
         private RegexNode ScanDollar()
         {
             if (_it.CharsRight() == 0)
@@ -1564,9 +1562,8 @@ namespace System.Text.RegularExpressions
             return RegexNode.CreateOneWithCaseConversion('$', _options, _culture, ref _caseBehavior);
         }
 
-        /*
-         * Scans a capture name: consumes word chars
-         */
+        /// <summary>Scans a capture name: consumes word chars</summary>
+
         private string ScanCapname()
         {
             int startpos = _it.Textpos();
@@ -1584,9 +1581,8 @@ namespace System.Text.RegularExpressions
         }
 
 
-        /*
-         * Scans up to three octal digits (stops before exceeding 0377).
-         */
+        /// <summary>Scans up to three octal digits (stops before exceeding 0377)</summary>
+
         private char ScanOctal()
         {
             // Consume octal chars only up to 3 digits and value 0377
@@ -1615,9 +1611,8 @@ namespace System.Text.RegularExpressions
             return (char)i;
         }
 
-        /*
-         * Scans any number of decimal digits (pegs value at 2^31-1 if too large)
-         */
+        /// <summary>Scans any number of decimal digits (pegs value at 2^31-1 if too large)</summary>
+
         private int ScanDecimal()
         {
             int i = 0;
@@ -1638,9 +1633,8 @@ namespace System.Text.RegularExpressions
             return i;
         }
 
-        /*
-         * Scans exactly c hex digits (c=2 for \xFF, c=4 for \uFFFF)
-         */
+        /// <summary>Scans exactly c hex digits (c=2 for \xFF, c=4 for \uFFFF)</summary>
+
         private char ScanHex(int c)
         {
             int i = 0;
@@ -1648,7 +1642,7 @@ namespace System.Text.RegularExpressions
 
             if (_it.CharsRight() >= c)
             {
-                for (; c > 0 && ((d = HexDigit(_it.RightCharMoveRight())) >= 0); c -= 1)
+                for (; c > 0 && ((d = HexConverter.FromChar(_it.RightCharMoveRight())) >= 0); c -= 1)
                 {
                     i = (i * 0x10) + d;
                 }
@@ -1662,9 +1656,7 @@ namespace System.Text.RegularExpressions
             return (char)i;
         }
 
-        /*
-         * Returns n <= 0xF for a hex digit.
-         */
+        /// <summary>Returns n &lt;= 0xF for a hex digit.</summary>
         private static int HexDigit(char ch)
         {
             int d;
@@ -1681,9 +1673,8 @@ namespace System.Text.RegularExpressions
             return -1;
         }
 
-        /*
-         * Grabs and converts an ASCII control character
-         */
+        /// <summary>Grabs and converts an ASCII control character</summary>
+
         private char ScanControl()
         {
             if (_it.CharsRight() == 0)
