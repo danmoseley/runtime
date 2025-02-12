@@ -60,5 +60,7 @@ namespace System.Text.RegularExpressions
         /// the top-level match.
         /// </remarks>
         NonBacktracking = 0x0400,
+
+        AnyNewLine = 0x0800,
     }
 }

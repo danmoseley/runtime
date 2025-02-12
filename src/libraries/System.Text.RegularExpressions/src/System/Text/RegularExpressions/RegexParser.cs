@@ -191,7 +191,9 @@ namespace System.Text.RegularExpressions
         /// </summary>
         public static RegexReplacement ParseReplacement(string pattern, RegexOptions options, Hashtable caps, int capsize, Hashtable capnames)
         {
+#pragma warning disable RS1035 // The symbol 'CultureInfo.CurrentCulture' is banned for use by analyzers.
             CultureInfo culture = (options & RegexOptions.CultureInvariant) != 0 ? CultureInfo.InvariantCulture : CultureInfo.CurrentCulture;
+#pragma warning restore RS1035
             using var parser = new RegexParser(pattern, options, culture, caps, capsize, capnames, stackalloc int[OptionStackDefaultSize]);
 
             RegexNode root = parser.ScanReplacement();
@@ -342,7 +344,7 @@ namespace System.Text.RegularExpressions
                 // or if IgnorePatternWhiteSpace is on, we'll stop when we see some whitespace.
                 if (UseOptionX())
                 {
-                    while (_it.CharsRight() > 0 && (!IsStopperX(ch = _it.RightChar()) || (ch == '{' && !IsTrueQuantifier())))
+                    while (_it.CharsRight() > 0 && (!IsSpecialOrSpace(ch = _it.RightChar()) || (ch == '{' && !IsTrueQuantifier())))
                         _it.MoveRight();
                 }
                 else
@@ -1144,9 +1146,7 @@ namespace System.Text.RegularExpressions
             throw _it.MakeException(RegexParseError.InvalidGroupingConstruct, SR.InvalidGroupingConstruct);
         }
 
-        /*
-         * Scans whitespace or x-mode comments.
-         */
+        /// <summary>Scans whitespace or x-mode comments</summary>
         private void ScanBlank()
         {
             if (UseOptionX())
@@ -2130,18 +2130,25 @@ namespace System.Text.RegularExpressions
 
         private bool UseOptionA() => (_options & RegexOptions.AnyNewLine) != 0;
 
+        private const byte Q = 4;    // quantifier          * + ? {
+        private const byte S = 3;    // stopper             $ ( ) . [ \ ^ |
+        private const byte Z = 2;    // # stopper           #
+        private const byte W = 1;    // whitespace          \t \n \f \r ' '
+
         /// <summary>For categorizing ASCII characters.</summary>
-        private static ReadOnlySpan<byte> Category => new byte[] {
+        private static ReadOnlySpan<byte> Category =>
+        [
             // 0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F  0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
-               0, 0, 0, 0, 0, 0, 0, 0, 0, X, X, 0, X, X, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+               0, 0, 0, 0, 0, 0, 0, 0, 0, W, W, 0, W, W, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             //    !  "  #  $  %  &  '  (  )  *  +  ,  -  .  /  0  1  2  3  4  5  6  7  8  9  :  ;  <  =  >  ?
-               X, 0, 0, Z, S, 0, 0, 0, S, S, Q, Q, 0, 0, S, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Q,
+               W, 0, 0, Z, S, 0, 0, 0, S, S, Q, Q, 0, 0, S, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Q,
             // @  A  B  C  D  E  F  G  H  I  J  K  L  M  N  O  P  Q  R  S  T  U  V  W  X  Y  Z  [  \  ]  ^  _
                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, S, S, 0, S, 0,
             // '  a  b  c  d  e  f  g  h  i  j  k  l  m  n  o  p  q  r  s  t  u  v  w  x  y  z  {  |  }  ~
-               0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Q, S, 0, 0, 0};
+               0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Q, S, 0, 0, 0
+        ];
 
-#if NET8_0_OR_GREATER
+#if NET
         private static readonly SearchValues<char> s_metachars =
             SearchValues.Create("\t\n\f\r #$()*+.?[\\^{|");
 
@@ -2152,7 +2159,7 @@ namespace System.Text.RegularExpressions
         {
             for (int i = 0; i < input.Length; i++)
             {
-                if (IsMetachar(input[i]))
+                if (input[i] <= '|' && Category[input[i]] > 0)
                 {
                     return i;
                 }
@@ -2165,11 +2172,14 @@ namespace System.Text.RegularExpressions
         /// <summary>Returns true for those characters that terminate a string of ordinary chars.</summary>
         private static bool IsSpecial(char ch) => ch <= '|' && Category[ch] >= S;
 
-        /// <summary>Returns true for those characters that terminate a string of ordinary chars.</summary>
-        private static bool IsStopperX(char ch) => ch <= '|' && Category[ch] >= X;
+        /// <summary>Returns true for those characters including whitespace that terminate a string of ordinary chars.</summary>
+        private static bool IsSpecialOrSpace(char ch) => ch <= '|' && Category[ch] >= W;
 
         /// <summary>Returns true for those characters that begin a quantifier.</summary>
-        private static bool IsQuantifier(char ch) => ch <= '{' && Category[ch] >= Q;
+        private static bool IsQuantifier(char ch) => ch <= '{' && Category[ch] == Q;
+
+        /// <summary>Returns true for whitespace.</summary>
+        private static bool IsSpace(char ch) => ch <= ' ' && Category[ch] == W;
 
         private bool IsTrueQuantifier()
         {
