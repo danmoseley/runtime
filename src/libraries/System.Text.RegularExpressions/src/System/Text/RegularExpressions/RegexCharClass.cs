@@ -434,7 +434,7 @@ namespace System.Text.RegularExpressions
         public void AddRange(char first, char last) =>
             EnsureRangeList().Add((first, last));
 
-        public void AddCategoryFromName(string categoryName, bool invert, bool caseInsensitive, string pattern, int currentPos)
+        public void AddCategoryFromName(string categoryName, bool invert, bool caseInsensitive, PatternIterator pi)
         {
             if (s_definedCategories.TryGetValue(categoryName, out string? category) &&
                 !categoryName.Equals(InternalRegexIgnoreCase))
@@ -462,7 +462,7 @@ namespace System.Text.RegularExpressions
             }
             else
             {
-                AddRanges(RangesFromProperty(categoryName, invert, pattern, currentPos));
+                AddRanges(RangesFromProperty(categoryName, invert, pi));
             }
         }
 
@@ -541,7 +541,7 @@ namespace System.Text.RegularExpressions
             }
         }
 
-        public void AddDigit(bool ecma, bool negate, string pattern, int currentPos)
+        public void AddDigit(bool ecma, bool negate, PatternIterator pi)
         {
             if (ecma)
             {
@@ -549,7 +549,7 @@ namespace System.Text.RegularExpressions
             }
             else
             {
-                AddCategoryFromName("Nd", negate, caseInsensitive: false, pattern, currentPos);
+                AddCategoryFromName("Nd", negate, caseInsensitive: false, pi);
             }
         }
 
@@ -1818,7 +1818,7 @@ namespace System.Text.RegularExpressions
             }
         }
 
-        private static ReadOnlySpan<char> RangesFromProperty(string capname, bool invert, string pattern, int currentPos)
+        private static ReadOnlySpan<char> RangesFromProperty(string capname, bool invert, PatternIterator pi)
         {
             int min = 0;
             int max = s_propTable.Length;
@@ -1845,8 +1845,7 @@ namespace System.Text.RegularExpressions
                 }
             }
 
-            throw new RegexParseException(RegexParseError.UnrecognizedUnicodeProperty, currentPos,
-                SR.Format(SR.MakeException, pattern, currentPos, SR.Format(SR.UnrecognizedUnicodeProperty, capname)));
+            throw pi.MakeException(RegexParseError.UnrecognizedUnicodeProperty, SR.Format(SR.UnrecognizedUnicodeProperty, capname));
         }
 
 #if DEBUG || !SYSTEM_TEXT_REGULAREXPRESSIONS
@@ -1881,6 +1880,11 @@ namespace System.Text.RegularExpressions
                 set[SetStartIndex] + 1 == set[SetStartIndex + 1])
             {
                 return DescribeChar(set[SetStartIndex]);
+            }
+
+            if (set == AnyClass)
+            {
+                return ".";
             }
 
             int index = SetStartIndex;
