@@ -748,21 +748,6 @@ namespace System.Text.RegularExpressions
                             break; // this break will only break out of the switch
                     }
                 }
-                else if (ch == '[')
-                {
-                    // This is code for Posix style properties - [:Ll:] or [:IsTibetan:].
-                    // It currently doesn't do anything other than skip the whole thing!
-                    if (_it.CharsRight() > 0 && _it.RightChar() == ':' && !inRange)
-                    {
-                        int savePos = _it.Textpos();
-
-                        _it.MoveRight();
-                        if (_it.CharsRight() < 2 || _it.RightCharMoveRight() != ':' || _it.RightCharMoveRight() != ']')
-                        {
-                            _it.Textto(savePos);
-                        }
-                    }
-                }
 
                 if (inRange)
                 {
@@ -965,9 +950,9 @@ namespace System.Text.RegularExpressions
                                 {
                                     string capname = ScanCapname();
 
-                                    if (IsCaptureName(capname))
+                                    if (_capnames?[capname] is int tmpCapnum)
                                     {
-                                        capnum = CaptureSlotFromName(capname);
+                                        capnum = tmpCapnum;
                                     }
 
                                     // check if we have bogus character after the name
@@ -1012,14 +997,10 @@ namespace System.Text.RegularExpressions
                                     {
                                         string uncapname = ScanCapname();
 
-                                        if (IsCaptureName(uncapname))
-                                        {
-                                            uncapnum = CaptureSlotFromName(uncapname);
-                                        }
-                                        else
-                                        {
+                                        uncapnum = _capnames?[uncapname] is int tmpCapnum ?
+                                            tmpCapnum :
                                             throw _it.MakeException(RegexParseError.UndefinedNamedReference, SR.Format(SR.UndefinedNamedReference, uncapname));
-                                        }
+
 
                                         // check if we have bogus character after the name
                                         if (_it.CharsRight() > 0 && _it.RightChar() != close)
@@ -1072,9 +1053,9 @@ namespace System.Text.RegularExpressions
                             {
                                 string capname = ScanCapname();
 
-                                if (IsCaptureName(capname) && _it.CharsRight() > 0 && _it.RightCharMoveRight() == ')')
+                                if (_capnames?[capname] is int tmpCapnum && _it.CharsRight() > 0 && _it.RightCharMoveRight() == ')')
                                 {
-                                    return new RegexNode(RegexNodeKind.BackreferenceConditional, _options, CaptureSlotFromName(capname));
+                                    return new RegexNode(RegexNodeKind.BackreferenceConditional, _options, tmpCapnum);
                                 }
                             }
                         }
@@ -1415,7 +1396,7 @@ namespace System.Text.RegularExpressions
                 {
                     return
                         scanOnly ? null :
-                        IsCaptureName(capname) ? new RegexNode(RegexNodeKind.Backreference, _options, CaptureSlotFromName(capname)) :
+                        _capnames?[capname] is int tmpCapnum ? new RegexNode(RegexNodeKind.Backreference, _options, tmpCapnum) :
                         throw _it.MakeException(RegexParseError.UndefinedNamedReference, SR.Format(SR.UndefinedNamedReference, capname));
                 }
             }
@@ -1512,9 +1493,9 @@ namespace System.Text.RegularExpressions
                 string capname = ScanCapname();
                 if (_it.CharsRight() > 0 && _it.RightCharMoveRight() == '}')
                 {
-                    if (IsCaptureName(capname))
+                    if (_capnames?[capname] is int tmpCapnum)
                     {
-                        return new RegexNode(RegexNodeKind.Backreference, _options, CaptureSlotFromName(capname));
+                        return new RegexNode(RegexNodeKind.Backreference, _options, tmpCapnum);
                     }
                 }
             }
@@ -1656,25 +1637,7 @@ namespace System.Text.RegularExpressions
             return (char)i;
         }
 
-        /// <summary>Returns n &lt;= 0xF for a hex digit.</summary>
-        private static int HexDigit(char ch)
-        {
-            int d;
-
-            if ((uint)(d = ch - '0') <= 9)
-                return d;
-
-            if ((uint)(d = ch - 'a') <= 5)
-                return d + 0xa;
-
-            if ((uint)(d = ch - 'A') <= 5)
-                return d + 0xa;
-
-            return -1;
-        }
-
         /// <summary>Grabs and converts an ASCII control character</summary>
-
         private char ScanControl()
         {
             if (_it.CharsRight() == 0)
@@ -1716,7 +1679,15 @@ namespace System.Text.RegularExpressions
                 }
                 else
                 {
-                    RegexOptions options = OptionFromCode(ch);
+                    RegexOptions options = (char)(ch | 0x20) switch
+                    {
+                        'i' => RegexOptions.IgnoreCase,
+                        'm' => RegexOptions.Multiline,
+                        'n' => RegexOptions.ExplicitCapture,
+                        's' => RegexOptions.Singleline,
+                        'x' => RegexOptions.IgnorePatternWhitespace,
+                        _ => RegexOptions.None,
+                    };
                     if (options == 0)
                     {
                         return;
@@ -1823,18 +1794,6 @@ namespace System.Text.RegularExpressions
                 'G' => RegexNodeKind.Start,
                 'z' => RegexNodeKind.End,
                 _ => RegexNodeKind.Nothing,
-            };
-
-        /// <summary>Returns option bit from single-char (?imnsx) code.</summary>
-        private static RegexOptions OptionFromCode(char ch) =>
-            (char)(ch | 0x20) switch
-            {
-                'i' => RegexOptions.IgnoreCase,
-                'm' => RegexOptions.Multiline,
-                'n' => RegexOptions.ExplicitCapture,
-                's' => RegexOptions.Singleline,
-                'x' => RegexOptions.IgnorePatternWhitespace,
-                _ => RegexOptions.None,
             };
 
         /// <summary>
@@ -2073,9 +2032,6 @@ namespace System.Text.RegularExpressions
             }
         }
 
-        /// <summary>Looks up the slot number for a given name.</summary>
-        private int CaptureSlotFromName(string capname) => (int)_capnames![capname]!;
-
         /// <summary>True if the capture slot was noted</summary>
         private bool IsCaptureSlot(int i)
         {
@@ -2098,9 +2054,6 @@ namespace System.Text.RegularExpressions
             caps != null ? (int)caps[capnum]! :
             capnum;
 
-        /// <summary>Looks up the slot number for a given name</summary>
-        private bool IsCaptureName(string capname) => _capnames != null && _capnames.ContainsKey(capname);
-
         /// <summary>True if N option disabling '(' autocapture is on.</summary>
         private bool UseOptionN() => (_options & RegexOptions.ExplicitCapture) != 0;
 
@@ -2113,12 +2066,13 @@ namespace System.Text.RegularExpressions
         /// <summary>True if S option altering meaning of . is on.</summary>
         private bool UseOptionS() => (_options & RegexOptions.Singleline) != 0;
 
-        /// <summary> True if X option enabling whitespace/comment mode is on.</summary>
+        /// <summary>True if X option enabling whitespace/comment mode is on.</summary>
         private bool UseOptionX() => (_options & RegexOptions.IgnorePatternWhitespace) != 0;
 
         /// <summary>True if E option enabling ECMAScript behavior is on.</summary>
         private bool UseOptionE() => (_options & RegexOptions.ECMAScript) != 0;
 
+        /// <summary>True if A option enabling AnyNewLine behavior is on.</summary>
         private bool UseOptionA() => (_options & RegexOptions.AnyNewLine) != 0;
 
         private const byte Q = 4;    // quantifier          * + ? {
