@@ -333,6 +333,8 @@ namespace System.Text.RegularExpressions
             Debug.Assert(rootNode.Parent is null);
             Debug.Assert(rootNode.ChildCount() == 1);
 
+            rootNode.LowerForAnyNewLine(Options);
+
             // Only apply optimization when LTR to avoid needing additional code for the much rarer RTL case.
             // Also only apply these optimizations when not using NonBacktracking, as these optimizations are
             // all about avoiding things that are impactful for the backtracking engines but nops for non-backtracking.
@@ -401,6 +403,44 @@ namespace System.Text.RegularExpressions
 #endif
             return rootNode;
         }
+
+        private void LowerForAnyNewLine(RegexOptions options)
+        {
+            if ((options & RegexOptions.AnyNewLine) == 0 ||
+                (options & RegexOptions.RightToLeft) != 0 ||
+                 !StackHelper.TryEnsureSufficientExecutionStack())
+            {
+                return;
+            }
+
+            // Walk the tree starting from the current node.
+            RegexNode node = this;
+            while (true)
+            {
+                switch (node.Kind)
+                {
+                    case RegexNodeKind.EndZ:
+                        // Lower to (?=\r\n\z|[\r\u0085\u2028\u2029]?\z)|(?<!\r)(?=\n\z)
+                        /* 
+                            Atomic
+                                Alternate
+                                PositiveLookaround           // \r\n at the very end of the text, OR the very end of the text possibly preceded by \r or equivalent
+                                    Alternate
+                                        Concatenate
+                                            Multi "\r\n"
+                                            End
+                                        Concatenate
+                                            Setloopatomic [\r\u0085\u2028\u2029]?
+                                            End
+                                Concatenate                 // \n at the very end of the text but not preceded by \r
+                                    NegativeLookaround-L    
+                                        One-L '\r'
+                                    PositiveLookaround
+                                        Concatenate
+                                            One '\n'
+                                            End
+                        */
+                }
 
         /// <summary>Converts nodes at the end of the node tree to be atomic.</summary>
         /// <remarks>

@@ -34,6 +34,9 @@ namespace System.Text.RegularExpressions.Tests
         private static IEnumerable<(string Pattern, string Input, RegexOptions Options, int Beginning, int Length, bool ExpectedSuccess, string ExpectedValue)> Match_MemberData_Cases(RegexEngine engine)
         {
 #if NET8_0_OR_GREATER
+            yield return (@".$", "abc\n", RegexOptions.AnyNewLine, 0, 4, true, "c");
+            //yield return (@".$", "abc\r", RegexOptions.AnyNewLine, 0, 4, true, "c");
+            yield return (@".$", "abc\r\n", RegexOptions.AnyNewLine, 0, 5, true, "c");
             yield return (@".$", "abc\n", RegexOptions.AnyNewLine | RegexOptions.Singleline, 0, 4, true, "c");
             yield return (@".$", "abc\r\n", RegexOptions.AnyNewLine | RegexOptions.Singleline, 0, 5, true, "c");
 
