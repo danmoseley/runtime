@@ -31,8 +31,53 @@ namespace System.Text.RegularExpressions.Tests
 
         private static IEnumerable<(string Pattern, string Input, RegexOptions Options, int Beginning, int Length, bool ExpectedSuccess, string ExpectedValue)> Match_MemberData_Cases(RegexEngine engine)
         {
-            // pattern, input, options, beginning, length, expectedSuccess, expectedValue
-            yield return (@"H#", "#H#", RegexOptions.IgnoreCase, 0, 3, true, "H#"); // https://github.com/dotnet/runtime/issues/39390
+#if NET8_0_OR_GREATER
+            yield return (@".$", "abc\n", RegexOptions.AnyNewLine | RegexOptions.Singleline, 0, 4, true, "c");
+            yield return (@".$", "abc\r\n", RegexOptions.AnyNewLine | RegexOptions.Singleline, 0, 5, true, "c");
+
+            // AnyNewLine (with none of the special characters used as line ending)
+            yield return (@"line3\nline4$", "line1\nline2\nline3\nline4", RegexOptions.AnyNewLine, 0, 23, true, "line3\nline4");
+
+            // AnyNewLine (with '\n' used as line ending)
+            yield return (@"line3\nline4$", "line1\nline2\nline3\nline4\n", RegexOptions.AnyNewLine, 0, 24, true, "line3\nline4");
+
+            // AnyNewLine (with '\r' used as line ending)
+            yield return (@"line3\nline4$", "line1\nline2\nline3\nline4\r", RegexOptions.AnyNewLine, 0, 24, true, "line3\nline4");
+
+            // AnyNewLine (with '\r\n' used as line ending)
+            yield return (@"line3\nline4$", "line1\nline2\nline3\nline4\r\n", RegexOptions.AnyNewLine, 0, 25, true, "line3\nline4");
+
+            // AnyNewLine | Multiline (with none of the special characters used as line ending)
+            yield return (@"line3\nline4$", "line1\nline2\nline3\nline4", RegexOptions.Multiline | RegexOptions.AnyNewLine, 0, 23, true, "line3\nline4");
+
+            // AnyNewLine | Multiline (with '\n' used as line ending)
+            yield return (@"line3\nline4$", "line1\nline2\nline3\nline4\n", RegexOptions.Multiline | RegexOptions.AnyNewLine, 0, 24, true, "line3\nline4");
+
+            // AnyNewLine | Multiline (with '\r' used as line ending)
+            yield return (@"line3\nline4$", "line1\nline2\nline3\nline4\r", RegexOptions.Multiline | RegexOptions.AnyNewLine, 0, 24, true, "line3\nline4");
+
+            // AnyNewLine | Multiline (with '\r\n' used as line ending)
+            yield return (@"line3\nline4$", "line1\nline2\nline3\nline4\r\n", RegexOptions.Multiline | RegexOptions.AnyNewLine, 0, 25, true, "line3\nline4");
+
+            // AnyNewLine
+            yield return (@"$", "line1\nline2\nline3\nline4\r\n", RegexOptions.AnyNewLine, 0, 25, true, "");
+
+            // AnyNewLine | RightToLeft
+            yield return (@"$", "line1\nline2\nline3\nline4\r\n", RegexOptions.RightToLeft | RegexOptions.AnyNewLine, 0, 25, true, "");
+
+            // AnyNewLine | Multiline ('.' will match everything except \r and \n)
+            yield return (@".*$", "foo\r\nbar", RegexOptions.AnyNewLine | RegexOptions.Multiline, 0, 8, true, "foo");
+#endif
+            yield break;
+        }
+
+
+
+
+            private static IEnumerable<(string Pattern, string Input, RegexOptions Options, int Beginning, int Length, bool ExpectedSuccess, string ExpectedValue)> xMatch_MemberData_Cases(RegexEngine engine)
+            {
+                // pattern, input, options, beginning, length, expectedSuccess, expectedValue
+                yield return (@"H#", "#H#", RegexOptions.IgnoreCase, 0, 3, true, "H#"); // https://github.com/dotnet/runtime/issues/39390
             yield return (@"H#", "#H#", RegexOptions.None, 0, 3, true, "H#");
 
             // Testing octal sequence matches: "\\060(\\061)?\\061"
