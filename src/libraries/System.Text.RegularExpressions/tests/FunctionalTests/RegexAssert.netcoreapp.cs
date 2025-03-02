@@ -9,7 +9,7 @@ namespace System.Text.RegularExpressions.Tests
     {
         public static void Equal(string expected, Capture actual)
         {
-            Assert.True(expected == actual.Value, $"Expected {Regex.Escape(expected)} actual {Regex.Escape(actual.Value)}");
+            Assert.True(expected == actual.Value, $"Expected to capture '{Regex.Escape(expected)}' but got '{Regex.Escape(actual.Value)}'");
             Assert.Equal(expected, actual.ValueSpan.ToString());
         }
     }
