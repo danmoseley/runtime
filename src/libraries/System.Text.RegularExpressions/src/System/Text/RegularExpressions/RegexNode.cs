@@ -414,33 +414,37 @@ namespace System.Text.RegularExpressions
             }
 
             // Walk the tree starting from the current node.
+            // https://github.com/dotnet/runtime/issues/25598#issuecomment-666955410
             RegexNode node = this;
-            while (true)
+            if (node.Children is null)
+            {
+                return;
+            }
+
+            List<RegexNode> children = node.Children as List<RegexNode> ?? new List<RegexNode>() { (node.Children as RegexNode)! };
+
+            for (int i = 0; i < children.Count; i++)
+            {
+                LowerNodeForAnyNewLine(children[i]);
+
+                RegexNode newChild = LowerNodeForAnyNewLine(children[i]);
+                if (newChild != children[i])
+                {
+                    children[i].ReplaceChild(i, newChild);
+                }
+            }
+
+            static RegexNode LowerNodeForAnyNewLine(RegexNode node)
             {
                 switch (node.Kind)
                 {
                     case RegexNodeKind.EndZ:
-                        // Lower to (?=\r\n\z|[\r\u0085\u2028\u2029]?\z)|(?<!\r)(?=\n\z)
-                        /* 
-                            Atomic
-                                Alternate
-                                PositiveLookaround           // \r\n at the very end of the text, OR the very end of the text possibly preceded by \r or equivalent
-                                    Alternate
-                                        Concatenate
-                                            Multi "\r\n"
-                                            End
-                                        Concatenate
-                                            Setloopatomic [\r\u0085\u2028\u2029]?
-                                            End
-                                Concatenate                 // \n at the very end of the text but not preceded by \r
-                                    NegativeLookaround-L    
-                                        One-L '\r'
-                                    PositiveLookaround
-                                        Concatenate
-                                            One '\n'
-                                            End
-                        */
+                        node = RegexParser.Parse(@"(?=\r\n\z|\r\z|\z)|(?<!\r)(?=\n\z)", RegexOptions.None, CultureInfo.InvariantCulture).Root;
+                        break;
                 }
+                return node;
+            }
+        }
 
         /// <summary>Converts nodes at the end of the node tree to be atomic.</summary>
         /// <remarks>
