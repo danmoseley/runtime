@@ -430,7 +430,7 @@ namespace System.Text.RegularExpressions
                 RegexNode newChild = LowerNodeForAnyNewLine(children[i]);
                 if (newChild != children[i])
                 {
-                    children[i].ReplaceChild(i, newChild);
+                    children[i].Parent!.ReplaceChild(i, newChild);
                 }
             }
 
@@ -440,6 +440,7 @@ namespace System.Text.RegularExpressions
                 {
                     case RegexNodeKind.EndZ:
                         node = RegexParser.Parse(@"(?=\r\n\z|\r\z|\z)|(?<!\r)(?=\n\z)", RegexOptions.None, CultureInfo.InvariantCulture).Root;
+                        node = node.Child(0); // remove the root capture node as we're going to graft this into an existing tree
                         break;
                 }
                 return node;
