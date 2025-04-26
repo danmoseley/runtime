@@ -333,7 +333,7 @@ namespace System.Text.RegularExpressions
             Debug.Assert(rootNode.Parent is null);
             Debug.Assert(rootNode.ChildCount() == 1);
 
-            rootNode.LowerForAnyNewLine(Options);
+            rootNode.LowerForAnyNewLine();
 
             // Only apply optimization when LTR to avoid needing additional code for the much rarer RTL case.
             // Also only apply these optimizations when not using NonBacktracking, as these optimizations are
@@ -404,10 +404,13 @@ namespace System.Text.RegularExpressions
             return rootNode;
         }
 
-        private void LowerForAnyNewLine(RegexOptions options)
+        private void LowerForAnyNewLine()
         {
-            if ((options & RegexOptions.AnyNewLine) == 0 ||
-                (options & RegexOptions.RightToLeft) != 0 ||
+            Debug.Assert((Options & RegexOptions.AnyNewLine) == 0 || (Options & RegexOptions.RightToLeft) == 0),
+                "AnyNewLine is not supported with RightToLeft.");
+
+            if ((Options & RegexOptions.AnyNewLine) == 0 ||
+                (Options & RegexOptions.RightToLeft) != 0 ||
                  !StackHelper.TryEnsureSufficientExecutionStack())
             {
                 return;
@@ -415,23 +418,22 @@ namespace System.Text.RegularExpressions
 
             // Walk the tree starting from the current node.
             // https://github.com/dotnet/runtime/issues/25598#issuecomment-666955410
-            RegexNode node = this;
-            if (node.Children is null)
+
+            if (Children is null) // only look at terminal nodes
             {
+                RegexNode newChild = LowerNodeForAnyNewLine(this);
+                if (newChild != this)
+                {
+                    this.Parent!.ReplaceChild(0, newChild);
+                }
                 return;
             }
 
-            List<RegexNode> children = node.Children as List<RegexNode> ?? new List<RegexNode>() { (node.Children as RegexNode)! };
+            List<RegexNode> children = Children as List<RegexNode> ?? new List<RegexNode>() { (Children as RegexNode)! };
 
             for (int i = 0; i < children.Count; i++)
             {
-                LowerNodeForAnyNewLine(children[i]);
-
-                RegexNode newChild = LowerNodeForAnyNewLine(children[i]);
-                if (newChild != children[i])
-                {
-                    children[i].Parent!.ReplaceChild(i, newChild);
-                }
+                children[i].LowerForAnyNewLine();
             }
 
             static RegexNode LowerNodeForAnyNewLine(RegexNode node)
@@ -439,8 +441,11 @@ namespace System.Text.RegularExpressions
                 switch (node.Kind)
                 {
                     case RegexNodeKind.EndZ:
-                        node = RegexParser.Parse(@"(?=\r\n\z|\r\z|\z)|(?<!\r)(?=\n\z)", RegexOptions.None, CultureInfo.InvariantCulture).Root;
-                        node = node.Child(0); // remove the root capture node as we're going to graft this into an existing tree
+                        node = RegexParser.Parse(@"(?=\r\n\z|\r\z|\z)|(?<!\r)(?=\n\z)", RegexOptions.None, CultureInfo.InvariantCulture).Root.Child(0);
+                        break;
+
+                    case RegexNodeKind.One:
+                        node = RegexParser.Parse(@"[^\n\r]", RegexOptions.None, CultureInfo.InvariantCulture).Root.Child(0);
                         break;
                 }
                 return node;
