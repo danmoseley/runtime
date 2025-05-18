@@ -515,9 +515,10 @@ namespace System.Text.RegularExpressions
         {
             (0, 0) => new RegexNode(RegexNodeKind.EndZ, _options), // regular $ case
             (0, RegexOptions.AnyNewLine) => DollarNodeAnyNewLine(),
-            (RegexOptions.Multiline, 0) => new RegexNode(RegexNodeKind.Eol, _options),
+            (RegexOptions.Multiline, 0) => new RegexNode(RegexNodeKind.Eol, _options), // regular multiline $ case
             (RegexOptions.Multiline, RegexOptions.AnyNewLine) => DollarNodeAnyNewLineMultiline(),
             _ => throw new NotImplementedException()
+
         };
 
         private readonly RegexNode DollarNodeAnyNewLine()
@@ -590,7 +591,7 @@ namespace System.Text.RegularExpressions
             // Meaning:
             // 1. Lookahead for \r\n or \r or just the end of the string
             // 2. Lookahead for \n, but not preceded by \r
-            
+
             // First branch: (?=\r\n|\r|\z)
             var firstBranch = new RegexNode(RegexNodeKind.PositiveLookaround, _options);
             var firstBranchAlt = new RegexNode(RegexNodeKind.Alternate, _options);

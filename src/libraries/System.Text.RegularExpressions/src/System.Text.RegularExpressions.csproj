@@ -46,7 +46,6 @@
     <Compile Include="System\Text\RegularExpressions\RegexParseError.cs" />
     <Compile Include="System\Text\RegularExpressions\RegexParseException.cs" />
     <Compile Include="System\Text\RegularExpressions\RegexParser.cs" />
-    <Compile Include="System\Text\RegularExpressions\RegexParser.Lowering.cs" />
     <Compile Include="System\Text\RegularExpressions\RegexPrefixAnalyzer.cs" />
     <Compile Include="System\Text\RegularExpressions\RegexReplacement.cs" />
     <Compile Include="System\Text\RegularExpressions\RegexRunner.cs" />
