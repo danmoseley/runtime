@@ -333,8 +333,6 @@ namespace System.Text.RegularExpressions
             Debug.Assert(rootNode.Parent is null);
             Debug.Assert(rootNode.ChildCount() == 1);
 
-            rootNode.LowerForAnyNewLine();
-
             // Only apply optimization when LTR to avoid needing additional code for the much rarer RTL case.
             // Also only apply these optimizations when not using NonBacktracking, as these optimizations are
             // all about avoiding things that are impactful for the backtracking engines but nops for non-backtracking.
@@ -402,54 +400,6 @@ namespace System.Text.RegularExpressions
             rootNode.ValidateFinalTreeInvariants();
 #endif
             return rootNode;
-        }
-
-        private void LowerForAnyNewLine()
-        {
-            Debug.Assert((Options & RegexOptions.AnyNewLine) == 0 || (Options & RegexOptions.RightToLeft) == 0,
-                "AnyNewLine is not supported with RightToLeft.");
-
-            if ((Options & RegexOptions.AnyNewLine) == 0 ||
-                (Options & RegexOptions.RightToLeft) != 0 ||
-                 !StackHelper.TryEnsureSufficientExecutionStack())
-            {
-                return;
-            }
-
-            // Walk the tree starting from the current node.
-            // https://github.com/dotnet/runtime/issues/25598#issuecomment-666955410
-
-            if (Children is null) // only look at terminal nodes
-            {
-                RegexNode newChild = LowerNodeForAnyNewLine(this);
-                if (newChild != this)
-                {
-                    this.Parent!.ReplaceChild(0, newChild);
-                }
-                return;
-            }
-
-            List<RegexNode> children = Children as List<RegexNode> ?? new List<RegexNode>() { (Children as RegexNode)! };
-
-            for (int i = 0; i < children.Count; i++)
-            {
-                children[i].LowerForAnyNewLine();
-            }
-
-            static RegexNode LowerNodeForAnyNewLine(RegexNode node)
-            {
-                switch (node.Kind)
-                {
-                    case RegexNodeKind.EndZ:
-                        node = RegexParser.Parse(@"(?=\r\n\z|\r\z|\z)|(?<!\r)(?=\n\z)", RegexOptions.None, CultureInfo.InvariantCulture).Root.Child(0);
-                        break;
-
-                    case RegexNodeKind.One:
-                        node = RegexParser.Parse(@"[^\n\r]", RegexOptions.None, CultureInfo.InvariantCulture).Root.Child(0);
-                        break;
-                }
-                return node;
-            }
         }
 
         /// <summary>Converts nodes at the end of the node tree to be atomic.</summary>

@@ -12,10 +12,6 @@ namespace System.Text.RegularExpressions
     /// <summary>Builds a tree of RegexNodes from a regular expression.</summary>
     internal ref struct RegexParser
     {
-        // Implementation notes:
-        // It would be nice to get rid of the comment modes, since the
-        // ScanBlank() calls are just kind of duct-taped in.
-
         private const int EscapeMaxBufferSize = 256;
         private const int OptionStackDefaultSize = 32;
         private const int MaxValueDiv10 = int.MaxValue / 10;
