@@ -406,7 +406,7 @@ namespace System.Text.RegularExpressions
 
         private void LowerForAnyNewLine()
         {
-            Debug.Assert((Options & RegexOptions.AnyNewLine) == 0 || (Options & RegexOptions.RightToLeft) == 0),
+            Debug.Assert((Options & RegexOptions.AnyNewLine) == 0 || (Options & RegexOptions.RightToLeft) == 0,
                 "AnyNewLine is not supported with RightToLeft.");
 
             if ((Options & RegexOptions.AnyNewLine) == 0 ||
