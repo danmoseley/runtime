@@ -368,14 +368,13 @@ namespace System.Text.RegularExpressions.Tests
         //[InlineData("^", "\\A")]
         //[InlineData("^", "\\A", 0x1000 /* AnyNewLine */)]
         //// [InlineData("$", "(?=\z|\n\z)")]
-       // [InlineData(".$", @"[^\n\r](?=\r\n\z|\r\z|\z)|(?<!\r)(?=\n\z)", 0x800 /* AnyNewLine */)]
+        // [InlineData(".$", @"[^\n\r](?=\r\n\z|\r\z|\z)|(?<!\r)(?=\n\z)", 0x800 /* AnyNewLine */)]
         [InlineData("$", @"(?=\r\n\z|\r?\z)|(?<!\r)(?=\n\z)", 0x800 /* AnyNewLine */)]
-        //[InlineData("$", "(?=\z|\n)", 0x2 /* Multiline */)]
-        //[InlineData("$", "(?=\\r\\n|[\\r\\u0085\\u2028\\u2029]|\\z)|(?<!\\r)(?=\\n)", 0x2 /* Multiline */ | 0x1000 /* AnyNewLine */)]
+        [InlineData("$", @"(?=\r\n|\r|\z)|(?<!\r)(?=\n)", 0x802 /* AnyNewLine | Multiline*/)]
         public void PatternsReduceIdentically(string actual, string expected, int options = 0)
         {
             // NOTE: RegexNode.ToString is only compiled into debug builds, so DEBUG is currently set on the unit tests project.
-            
+
             string actualStr = RegexParser.Parse(actual, (RegexOptions)options, CultureInfo.InvariantCulture).Root.ToString();
             string expectedStr = RegexParser.Parse(expected, (RegexOptions)options, CultureInfo.InvariantCulture).Root.ToString();
             if (actualStr != expectedStr)

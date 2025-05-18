@@ -522,7 +522,8 @@ namespace System.Text.RegularExpressions
 
         private readonly RegexNode DollarNodeAnyNewLine()
         {
-            // In AnyNewLine mode, with Multiline off, $ matches the end of the string or the end of a line
+            // In AnyNewLine mode, with Multiline off, $ matches the end of the string
+            // or before any line ending at the end of the string.
             // The tricky part is that \r\n must be matched as a single unit
 
             // We lower $ to
@@ -577,10 +578,58 @@ namespace System.Text.RegularExpressions
             return root;
         }
 
-
         private RegexNode DollarNodeAnyNewLineMultiline()
         {
-            throw new NotImplementedException();
+            // In AnyNewLine mode, with Multiline on, $ matches the end of a line
+            // or before any line ending at the end of the line.
+            // The tricky part is that \r\n must be matched as a single unit
+
+            // We lower $ to
+            // (?=\r\n|\r|\z)|(?<!\r)(?=\n) // add \u0085\u2028\u2029 later
+
+            // Meaning:
+            // 1. Lookahead for \r\n or \r or just the end of the string
+            // 2. Lookahead for \n, but not preceded by \r
+            
+            // First branch: (?=\r\n|\r|\z)
+            var firstBranch = new RegexNode(RegexNodeKind.PositiveLookaround, _options);
+            var firstBranchAlt = new RegexNode(RegexNodeKind.Alternate, _options);
+
+            // First alternative: \r\n
+            var concat1 = new RegexNode(RegexNodeKind.Concatenate, _options);
+            concat1.AddChild(new RegexNode(RegexNodeKind.One, _options, '\r'));
+            concat1.AddChild(new RegexNode(RegexNodeKind.One, _options, '\n'));
+            firstBranchAlt.AddChild(concat1);
+
+            // Second alternative: \r
+            firstBranchAlt.AddChild(new RegexNode(RegexNodeKind.One, _options, '\r'));
+
+            // Third alternative: \z
+            firstBranchAlt.AddChild(new RegexNode(RegexNodeKind.End, _options));
+
+            firstBranch.AddChild(firstBranchAlt);
+
+            // Second branch: (?<!\r)(?=\n)
+            var secondBranch = new RegexNode(RegexNodeKind.Concatenate, _options);
+
+            // Negative lookbehind (?<!\r)
+            var negLookbehind = new RegexNode(RegexNodeKind.NegativeLookaround, _options | RegexOptions.RightToLeft);
+            negLookbehind.AddChild(new RegexNode(RegexNodeKind.One, _options | RegexOptions.RightToLeft, '\r'));
+            secondBranch.AddChild(negLookbehind);
+
+            // Positive lookahead (?=\n)
+            var posLookahead = new RegexNode(RegexNodeKind.PositiveLookaround, _options);
+            posLookahead.AddChild(new RegexNode(RegexNodeKind.One, _options, '\n'));
+            secondBranch.AddChild(posLookahead);
+
+            // Top-level alternation
+            var root = new RegexNode(RegexNodeKind.Alternate, _options);
+            root.AddChild(firstBranch);
+            root.AddChild(secondBranch);
+
+
+            return root;
+
         }
 
         /// <summary>Simple parsing for replacement patterns</summary>
