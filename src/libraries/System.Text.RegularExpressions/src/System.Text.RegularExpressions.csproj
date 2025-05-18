@@ -9,7 +9,6 @@
 
   <ItemGroup>
     <Compile Include="System\Collections\HashtableExtensions.cs" />
-    <Compile Include="System\Text\RegularExpressions\ValueMatch.cs" />
     <Compile Include="System\Text\StructListBuilder.cs" />
     <Compile Include="System\Threading\StackHelper.cs" />
     <Compile Include="System\Text\RegularExpressions\Capture.cs" />
@@ -47,6 +46,7 @@
     <Compile Include="System\Text\RegularExpressions\RegexParseError.cs" />
     <Compile Include="System\Text\RegularExpressions\RegexParseException.cs" />
     <Compile Include="System\Text\RegularExpressions\RegexParser.cs" />
+    <Compile Include="System\Text\RegularExpressions\RegexParser.Lowering.cs" />
     <Compile Include="System\Text\RegularExpressions\RegexPrefixAnalyzer.cs" />
     <Compile Include="System\Text\RegularExpressions\RegexReplacement.cs" />
     <Compile Include="System\Text\RegularExpressions\RegexRunner.cs" />
@@ -56,6 +56,7 @@
     <Compile Include="System\Text\RegularExpressions\RegexTreeAnalyzer.cs" />
     <Compile Include="System\Text\RegularExpressions\RegexWriter.cs" />
     <Compile Include="System\Text\RegularExpressions\ThrowHelper.cs" />
+    <Compile Include="System\Text\RegularExpressions\ValueMatch.cs" />
     <!-- RegexOptions.Compiled -->
     <Compile Include="System\Text\RegularExpressions\CompiledRegexRunnerFactory.cs" />
     <Compile Include="System\Text\RegularExpressions\CompiledRegexRunner.cs" />
@@ -72,8 +73,8 @@
     <Compile Include="System\Text\RegularExpressions\Symbolic\MatchingState.cs" />
     <Compile Include="System\Text\RegularExpressions\Symbolic\DoublyLinkedList.cs" />
     <Compile Include="System\Text\RegularExpressions\Symbolic\ISolver.cs" />
-    <Compile Include="System\Text\RegularExpressions\Symbolic\MatchReversalKind.cs"/>
-    <Compile Include="System\Text\RegularExpressions\Symbolic\MatchReversal.cs"/>
+    <Compile Include="System\Text\RegularExpressions\Symbolic\MatchReversalKind.cs" />
+    <Compile Include="System\Text\RegularExpressions\Symbolic\MatchReversal.cs" />
     <Compile Include="System\Text\RegularExpressions\Symbolic\MintermClassifier.cs" />
     <Compile Include="System\Text\RegularExpressions\Symbolic\MintermGenerator.cs" />
     <Compile Include="System\Text\RegularExpressions\Symbolic\RegexNodeConverter.cs" />
