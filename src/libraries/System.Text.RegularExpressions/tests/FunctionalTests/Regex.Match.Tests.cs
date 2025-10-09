@@ -2824,21 +2824,16 @@ namespace System.Text.RegularExpressions.Tests
         [InlineData("^\\w{5}$", "hello!", false, RegexOptions.Compiled)]
         public async Task DualAnchor(string pattern, string input, bool shouldMatch, RegexOptions options = RegexOptions.None)
         {
-            // Test all available engines to ensure consistency across compilation modes
             foreach (RegexEngine engine in RegexHelpers.AvailableEngines)
             {
                 Regex regex = await RegexHelpers.GetRegexAsync(engine, pattern, options);
-                Assert.Equal(shouldMatch, regex.IsMatch(input), 
-                    $"Pattern: {pattern}, Input: {input}, Options: {options}, Engine: {engine}");
+                Assert.Equal(shouldMatch, regex.IsMatch(input));
                 
-                // Also test Match method for consistency
                 Match match = regex.Match(input);
-                Assert.Equal(shouldMatch, match.Success, 
-                    $"Pattern: {pattern}, Input: {input}, Options: {options}, Engine: {engine}");
+                Assert.Equal(shouldMatch, match.Success);
                 
                 if (shouldMatch)
                 {
-                    // For successful matches, verify the match value
                     string expectedValue = pattern.Contains("$") && input.EndsWith("\n") ? 
                         input.TrimEnd('\n') : input;
                     Assert.Equal(expectedValue, match.Value);

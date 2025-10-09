@@ -58,6 +58,35 @@ namespace System.Text.RegularExpressions
                 // Filter out Bol for RightToLeft, as we don't currently optimize for it.
                 LeadingAnchor = RegexNodeKind.Unknown;
             }
+
+            // Compute any anchor trailing the expression.  If there is one, and we can also compute a fixed length
+            // for the whole expression, we can use that to quickly jump to the right location in the input.
+            if (!rightToLeft && // haven't added FindNextStartingPositionMode trailing anchor support for RTL
+                !isLeadingPartial) // trailing anchors in a partial root aren't relevant
+            {
+                TrailingAnchor = RegexPrefixAnalyzer.FindTrailingAnchor(root);
+            }
+
+            // Check for dual anchor optimization: both leading and trailing anchors with fixed length
+            if (!rightToLeft &&
+                !isLeadingPartial &&
+                LeadingAnchor is RegexNodeKind.Beginning or RegexNodeKind.Start &&
+                TrailingAnchor is RegexNodeKind.End or RegexNodeKind.EndZ &&
+                root.ComputeMaxLength() is int maxLength)
+            {
+                Debug.Assert(maxLength >= MinRequiredLength, $"{maxLength} should have been greater than {MinRequiredLength} minimum");
+                MaxPossibleLength = maxLength;
+                if (MinRequiredLength == maxLength)
+                {
+                    // We have both leading and trailing anchors with a fixed length pattern.
+                    // This allows us to quickly reject inputs that don't match the exact length.
+                    FindMode = TrailingAnchor == RegexNodeKind.End ?
+                        FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_End :
+                        FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_EndZ;
+                    return;
+                }
+            }
+
             if (LeadingAnchor is RegexNodeKind.Beginning or RegexNodeKind.Start or RegexNodeKind.EndZ or RegexNodeKind.End)
             {
                 FindMode = (LeadingAnchor, rightToLeft) switch
@@ -74,25 +103,17 @@ namespace System.Text.RegularExpressions
                 return;
             }
 
-            // Compute any anchor trailing the expression.  If there is one, and we can also compute a fixed length
-            // for the whole expression, we can use that to quickly jump to the right location in the input.
-            if (!rightToLeft && // haven't added FindNextStartingPositionMode trailing anchor support for RTL
-                !isLeadingPartial) // trailing anchors in a partial root aren't relevant
+            // If there's only a trailing anchor with fixed length, use the existing trailing anchor optimization
+            if (!rightToLeft &&
+                !isLeadingPartial &&
+                TrailingAnchor is RegexNodeKind.End or RegexNodeKind.EndZ &&
+                MaxPossibleLength is not null &&
+                MinRequiredLength == MaxPossibleLength)
             {
-                TrailingAnchor = RegexPrefixAnalyzer.FindTrailingAnchor(root);
-                if (TrailingAnchor is RegexNodeKind.End or RegexNodeKind.EndZ &&
-                    root.ComputeMaxLength() is int maxLength)
-                {
-                    Debug.Assert(maxLength >= MinRequiredLength, $"{maxLength} should have been greater than {MinRequiredLength} minimum");
-                    MaxPossibleLength = maxLength;
-                    if (MinRequiredLength == maxLength)
-                    {
-                        FindMode = TrailingAnchor == RegexNodeKind.End ?
-                            FindNextStartingPositionMode.TrailingAnchor_FixedLength_LeftToRight_End :
-                            FindNextStartingPositionMode.TrailingAnchor_FixedLength_LeftToRight_EndZ;
-                        return;
-                    }
-                }
+                FindMode = TrailingAnchor == RegexNodeKind.End ?
+                    FindNextStartingPositionMode.TrailingAnchor_FixedLength_LeftToRight_End :
+                    FindNextStartingPositionMode.TrailingAnchor_FixedLength_LeftToRight_EndZ;
+                return;
             }
 
             // If there's a leading substring, just use IndexOf and inherit all of its optimizations.
@@ -612,6 +633,49 @@ namespace System.Text.RegularExpressions
                     }
                     return true;
 
+                // Dual anchor with fixed length: both leading and trailing anchors
+                // This allows us to quickly reject inputs that don't match the exact required length
+
+                case FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_End:
+                    // Pattern like ^abc\z where we know the exact length
+                    // \z requires exact match at end of string, no trailing newline allowed
+                    if (pos != 0)
+                    {
+                        // We're not at the beginning, so we'll never match
+                        pos = textSpan.Length;
+                        return false;
+                    }
+                    // For \z, we need exact length match (no trailing newline allowed)
+                    if (textSpan.Length != MinRequiredLength)
+                    {
+                        // Input length doesn't match required length, fail fast
+                        pos = textSpan.Length;
+                        return false;
+                    }
+                    return true;
+
+                case FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_EndZ:
+                    // Pattern like ^abc$ where we know the exact length
+                    // $ and \Z allow a trailing newline
+                    if (pos != 0)
+                    {
+                        // We're not at the beginning, so we'll never match
+                        pos = textSpan.Length;
+                        return false;
+                    }
+                    // Check if input length matches exactly, or if it's one longer with a trailing newline
+                    if (textSpan.Length == MinRequiredLength)
+                    {
+                        return true;
+                    }
+                    if (textSpan.Length == MinRequiredLength + 1 && textSpan[MinRequiredLength] == '\n')
+                    {
+                        return true;
+                    }
+                    // Input length doesn't match required length, fail fast
+                    pos = textSpan.Length;
+                    return false;
+
                 // There's a case-sensitive prefix.  Search for it with ordinal IndexOf.
 
                 case FindNextStartingPositionMode.LeadingString_LeftToRight:
@@ -894,6 +958,11 @@ namespace System.Text.RegularExpressions
         TrailingAnchor_FixedLength_LeftToRight_End,
         /// <summary>An "endz" anchor at the end of the pattern, with the pattern always matching a fixed-length expression.</summary>
         TrailingAnchor_FixedLength_LeftToRight_EndZ,
+
+        /// <summary>Both a leading "beginning" or "start" anchor and trailing "end" anchor with fixed-length pattern.</summary>
+        DualAnchor_FixedLength_LeftToRight_Beginning_End,
+        /// <summary>Both a leading "beginning" or "start" anchor and trailing "endz" anchor with fixed-length pattern.</summary>
+        DualAnchor_FixedLength_LeftToRight_Beginning_EndZ,
 
         /// <summary>A multi-character substring at the beginning of the pattern.</summary>
         LeadingString_LeftToRight,

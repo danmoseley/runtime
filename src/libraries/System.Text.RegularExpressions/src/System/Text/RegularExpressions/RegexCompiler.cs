@@ -639,6 +639,64 @@ namespace System.Text.RegularExpressions
                             Ret();
                             return true;
                         }
+
+                    case FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_End:
+                        // Pattern like ^abc$ with fixed length
+                        // Must be at position 0 and length must match exactly or be one longer with trailing \n
+                        {
+                            Label checkLength = DefineLabel();
+                            Label checkNewline = DefineLabel();
+
+                            // if (pos != 0) goto returnFalse
+                            Ldloc(pos);
+                            Ldc(0);
+                            Bne(returnFalse);
+
+                            // if (inputSpan.Length == MinRequiredLength) return true
+                            Ldloca(inputSpan);
+                            Call(SpanGetLengthMethod);
+                            Ldc(_regexTree.FindOptimizations.MinRequiredLength);
+                            Beq(checkLength);
+
+                            // if (inputSpan.Length == MinRequiredLength + 1 && inputSpan[MinRequiredLength] == '\n') return true
+                            Ldloca(inputSpan);
+                            Call(SpanGetLengthMethod);
+                            Ldc(_regexTree.FindOptimizations.MinRequiredLength + 1);
+                            Bne(returnFalse);
+
+                            Ldloca(inputSpan);
+                            Ldc(_regexTree.FindOptimizations.MinRequiredLength);
+                            Call(SpanGetItemMethod);
+                            LdindU2();
+                            Ldc('\n');
+                            Bne(returnFalse);
+
+                            MarkLabel(checkLength);
+                            Ldc(1);
+                            Ret();
+                            return true;
+                        }
+
+                    case FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_EndZ:
+                        // Pattern like ^abc\z with fixed length
+                        // Must be at position 0 and length must match exactly (\z doesn't allow trailing newline)
+                        {
+                            // if (pos != 0) goto returnFalse
+                            Ldloc(pos);
+                            Ldc(0);
+                            Bne(returnFalse);
+
+                            // if (inputSpan.Length != MinRequiredLength) goto returnFalse
+                            Ldloca(inputSpan);
+                            Call(SpanGetLengthMethod);
+                            Ldc(_regexTree.FindOptimizations.MinRequiredLength);
+                            Bne(returnFalse);
+
+                            // return true
+                            Ldc(1);
+                            Ret();
+                            return true;
+                        }
                 }
 
                 // Now handle anchors that boost the position but don't determine immediate success or failure.

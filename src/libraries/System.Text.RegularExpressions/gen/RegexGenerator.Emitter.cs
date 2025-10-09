@@ -1058,6 +1058,30 @@ namespace System.Text.RegularExpressions.Generator
                         writer.WriteLine("return true;");
                         findEndsInAlwaysReturningTrue = true;
                         return true;
+
+                    case FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_End:
+                        // Pattern like ^abc$ with fixed length. Must be at position 0 and length must match exactly or be one longer with trailing \n
+                        writer.WriteLine($"// The pattern begins with ^ and ends with $, and any possible match is exactly {regexTree.FindOptimizations.MinRequiredLength} characters.");
+                        using (EmitBlock(writer, "if (pos == 0)"))
+                        {
+                            using (EmitBlock(writer, $"if (inputSpan.Length == {regexTree.FindOptimizations.MinRequiredLength} || (inputSpan.Length == {regexTree.FindOptimizations.MinRequiredLength + 1} && inputSpan[{regexTree.FindOptimizations.MinRequiredLength}] == '\\n'))"))
+                            {
+                                writer.WriteLine("return true;");
+                            }
+                        }
+                        return true;
+
+                    case FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_EndZ:
+                        // Pattern like ^abc\z with fixed length. Must be at position 0 and length must match exactly
+                        writer.WriteLine($"// The pattern begins with ^ and ends with \\z, and any possible match is exactly {regexTree.FindOptimizations.MinRequiredLength} characters.");
+                        using (EmitBlock(writer, "if (pos == 0)"))
+                        {
+                            using (EmitBlock(writer, $"if (inputSpan.Length == {regexTree.FindOptimizations.MinRequiredLength})"))
+                            {
+                                writer.WriteLine("return true;");
+                            }
+                        }
+                        return true;
                 }
 
                 // Now handle anchors that boost the position but may not determine immediate success or failure.
