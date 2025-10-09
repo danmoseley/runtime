@@ -2756,5 +2756,94 @@ namespace System.Text.RegularExpressions.Tests
                 Assert.Equal(272, ms[0].Length);
             }
         }
+
+        [Theory]
+        [InlineData("^1234$", "1234", true)]     // Exact match
+        [InlineData("^1234$", "12345", false)]   // Too long - should fail fast
+        [InlineData("^1234$", "123", false)]     // Too short - should fail fast
+        [InlineData("^1234$", "x234", false)]    // Wrong content, right length
+        [InlineData("^abc\\z", "abc", true)]     // \\z anchor exact
+        [InlineData("^abc\\z", "abc\n", false)]  // \\z vs $ difference
+        [InlineData("^abc$", "abc\n", true)]     // $ allows trailing newline
+        [InlineData("^a{3}$", "aaa", true)]      // Fixed length quantifier
+        [InlineData("^a{3}$", "aaaa", false)]    // Fixed length quantifier too long
+        [InlineData("^(abc|def)$", "abc", true)] // Alternation with fixed length
+        [InlineData("^(abc|def)$", "def", true)] // Alternation with fixed length
+        [InlineData("^(abc|def)$", "abcd", false)] // Alternation too long
+        [InlineData("\\A123\\z", "123", true)]   // \\A and \\z
+        [InlineData("\\A123\\Z", "123", true)]   // \\A and \\Z
+        [InlineData("\\A123\\Z", "123\n", true)] // \\A and \\Z with newline
+        [InlineData("^$", "", true)]             // Empty pattern and input
+        [InlineData("^$", "a", false)]           // Empty pattern, non-empty input
+        [InlineData("^a$", "a", true)]           // Single character
+        [InlineData("^\\w{5}$", "hello", true)]  // Character class with quantifier
+        [InlineData("^\\w{5}$", "hello!", false)] // Character class with quantifier, too long
+        // Edge cases
+        [InlineData("^abc$", "", false)]         // Empty input, non-empty pattern
+        [InlineData("^a*$", "", true)]           // Variable length pattern, empty input (should match)
+        [InlineData("^a*$", "aaa", true)]        // Variable length pattern, matching input
+        [InlineData("^a*$", "aaab", false)]      // Variable length pattern, non-matching input
+        [InlineData("^a+$", "", false)]          // Required pattern, empty input (should not match)
+        [InlineData("^.{3}$", "abc", true)]      // Any character pattern, exact length
+        [InlineData("^.{3}$", "ab", false)]      // Any character pattern, too short
+        [InlineData("^[a-z]{4}$", "test", true)] // Character class with exact quantifier
+        [InlineData("^[a-z]{4}$", "Test", false)] // Character class, case mismatch
+        // Complex patterns
+        [InlineData("^[a-z]{3}$", "abc", true)]
+        [InlineData("^[a-z]{3}$", "ABC", false)] // Case sensitive
+        [InlineData("^[a-z]{3}$", "ab1", false)] // Invalid character
+        [InlineData("^\\d{4}$", "1234", true)]
+        [InlineData("^\\d{4}$", "12a4", false)]
+        [InlineData("^\\w+@\\w+\\.com$", "test@example.com", true)]
+        [InlineData("^\\w+@\\w+\\.com$", "test@example.org", false)]
+        // Unicode handling
+        [InlineData("^café$", "café", true)]     // Non-ASCII characters
+        [InlineData("^café$", "caféx", false)]
+        [InlineData("^test🚀$", "test🚀", true)] // Emoji
+        [InlineData("^test🚀$", "xtest🚀", false)]
+        [InlineData("^αβγ$", "αβγ", true)]       // Greek letters
+        [InlineData("^αβγ$", "αβγx", false)]
+        [InlineData("^тест$", "тест", true)]     // Cyrillic
+        [InlineData("^тест$", "xтест", false)]
+        [InlineData("^测试$", "测试", true)]       // Chinese characters
+        [InlineData("^测试$", "测试x", false)]
+        // With RegexOptions
+        [InlineData("^abc$", "abc", true, RegexOptions.IgnoreCase)]
+        [InlineData("^abc$", "ABC", true, RegexOptions.IgnoreCase)]
+        [InlineData("^abc$", "abcx", false, RegexOptions.IgnoreCase)]
+        [InlineData("^test$", "test", true, RegexOptions.Multiline)]
+        [InlineData("^test$", "testx", false, RegexOptions.Multiline)]
+        [InlineData("^sample$", "sample", true, RegexOptions.Singleline)]
+        [InlineData("^sample$", "xsample", false, RegexOptions.Singleline)]
+        [InlineData("^pattern$", "PATTERN", true, RegexOptions.IgnoreCase | RegexOptions.Multiline)]
+        [InlineData("^pattern$", "xpattern", false, RegexOptions.IgnoreCase | RegexOptions.Multiline)]
+        // Compiled options
+        [InlineData("^test$", "test", true, RegexOptions.Compiled)]
+        [InlineData("^test$", "testx", false, RegexOptions.Compiled)]
+        [InlineData("^\\w{5}$", "hello", true, RegexOptions.Compiled)]
+        [InlineData("^\\w{5}$", "hello!", false, RegexOptions.Compiled)]
+        public async Task DualAnchor(string pattern, string input, bool shouldMatch, RegexOptions options = RegexOptions.None)
+        {
+            // Test all available engines to ensure consistency across compilation modes
+            foreach (RegexEngine engine in RegexHelpers.AvailableEngines)
+            {
+                Regex regex = await RegexHelpers.GetRegexAsync(engine, pattern, options);
+                Assert.Equal(shouldMatch, regex.IsMatch(input), 
+                    $"Pattern: {pattern}, Input: {input}, Options: {options}, Engine: {engine}");
+                
+                // Also test Match method for consistency
+                Match match = regex.Match(input);
+                Assert.Equal(shouldMatch, match.Success, 
+                    $"Pattern: {pattern}, Input: {input}, Options: {options}, Engine: {engine}");
+                
+                if (shouldMatch)
+                {
+                    // For successful matches, verify the match value
+                    string expectedValue = pattern.Contains("$") && input.EndsWith("\n") ? 
+                        input.TrimEnd('\n') : input;
+                    Assert.Equal(expectedValue, match.Value);
+                }
+            }
+        }
     }
 }
