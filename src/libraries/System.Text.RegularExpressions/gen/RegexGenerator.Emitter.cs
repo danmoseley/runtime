@@ -1059,9 +1059,9 @@ namespace System.Text.RegularExpressions.Generator
                         findEndsInAlwaysReturningTrue = true;
                         return true;
 
-                    case FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_End:
-                        // Pattern like ^abc$ with fixed length. Must be at position 0 and length must match exactly or be one longer with trailing \n
-                        writer.WriteLine($"// The pattern begins with ^ and ends with $, and any possible match is exactly {regexTree.FindOptimizations.MinRequiredLength} characters.");
+                    case FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_EndZ:
+                        // Pattern like ^abc$ or \A...\Z with fixed length. Must be at position 0 and length must match exactly or be one longer with trailing \n
+                        writer.WriteLine($"// The pattern begins with ^ or \\A and ends with $ or \\Z, and any possible match is exactly {regexTree.FindOptimizations.MinRequiredLength} characters.");
                         using (EmitBlock(writer, "if (pos == 0)"))
                         {
                             using (EmitBlock(writer, $"if (inputSpan.Length == {regexTree.FindOptimizations.MinRequiredLength} || (inputSpan.Length == {regexTree.FindOptimizations.MinRequiredLength + 1} && inputSpan[{regexTree.FindOptimizations.MinRequiredLength}] == '\\n'))"))
@@ -1071,9 +1071,9 @@ namespace System.Text.RegularExpressions.Generator
                         }
                         return true;
 
-                    case FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_EndZ:
-                        // Pattern like ^abc\z with fixed length. Must be at position 0 and length must match exactly
-                        writer.WriteLine($"// The pattern begins with ^ and ends with \\z, and any possible match is exactly {regexTree.FindOptimizations.MinRequiredLength} characters.");
+                    case FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_End:
+                        // Pattern like ^abc\z or \A...\z with fixed length. Must be at position 0 and length must match exactly
+                        writer.WriteLine($"// The pattern begins with ^ or \\A and ends with \\z, and any possible match is exactly {regexTree.FindOptimizations.MinRequiredLength} characters.");
                         using (EmitBlock(writer, "if (pos == 0)"))
                         {
                             using (EmitBlock(writer, $"if (inputSpan.Length == {regexTree.FindOptimizations.MinRequiredLength})"))

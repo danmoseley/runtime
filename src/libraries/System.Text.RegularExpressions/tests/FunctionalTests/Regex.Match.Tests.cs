@@ -2834,7 +2834,7 @@ namespace System.Text.RegularExpressions.Tests
                 
                 if (shouldMatch)
                 {
-                    string expectedValue = pattern.Contains("$") && input.EndsWith("\n") ? 
+                    string expectedValue = (pattern.Contains("$") || pattern.Contains("\\Z")) && input.EndsWith("\n") ?
                         input.TrimEnd('\n') : input;
                     Assert.Equal(expectedValue, match.Value);
                 }

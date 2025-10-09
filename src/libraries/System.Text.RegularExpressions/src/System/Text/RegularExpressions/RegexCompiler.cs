@@ -640,8 +640,8 @@ namespace System.Text.RegularExpressions
                             return true;
                         }
 
-                    case FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_End:
-                        // Pattern like ^abc$ with fixed length
+                    case FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_EndZ:
+                        // Pattern like ^abc$ or \A...\Z with fixed length
                         // Must be at position 0 and length must match exactly or be one longer with trailing \n
                         {
                             Label checkLength = DefineLabel();
@@ -677,8 +677,8 @@ namespace System.Text.RegularExpressions
                             return true;
                         }
 
-                    case FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_EndZ:
-                        // Pattern like ^abc\z with fixed length
+                    case FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_End:
+                        // Pattern like ^abc\z or \A...\z with fixed length
                         // Must be at position 0 and length must match exactly (\z doesn't allow trailing newline)
                         {
                             // if (pos != 0) goto returnFalse

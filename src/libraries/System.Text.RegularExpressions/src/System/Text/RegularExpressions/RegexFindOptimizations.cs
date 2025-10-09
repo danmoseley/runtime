@@ -636,26 +636,8 @@ namespace System.Text.RegularExpressions
                 // Dual anchor with fixed length: both leading and trailing anchors
                 // This allows us to quickly reject inputs that don't match the exact required length
 
-                case FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_End:
-                    // Pattern like ^abc\z where we know the exact length
-                    // \z requires exact match at end of string, no trailing newline allowed
-                    if (pos != 0)
-                    {
-                        // We're not at the beginning, so we'll never match
-                        pos = textSpan.Length;
-                        return false;
-                    }
-                    // For \z, we need exact length match (no trailing newline allowed)
-                    if (textSpan.Length != MinRequiredLength)
-                    {
-                        // Input length doesn't match required length, fail fast
-                        pos = textSpan.Length;
-                        return false;
-                    }
-                    return true;
-
                 case FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_EndZ:
-                    // Pattern like ^abc$ where we know the exact length
+                    // Pattern like ^abc$ or \A...\Z where we know the exact length
                     // $ and \Z allow a trailing newline
                     if (pos != 0)
                     {
@@ -675,6 +657,24 @@ namespace System.Text.RegularExpressions
                     // Input length doesn't match required length, fail fast
                     pos = textSpan.Length;
                     return false;
+
+                case FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_End:
+                    // Pattern like ^abc\z where we know the exact length
+                    // \z requires exact match at end of string, no trailing newline allowed
+                    if (pos != 0)
+                    {
+                        // We're not at the beginning, so we'll never match
+                        pos = textSpan.Length;
+                        return false;
+                    }
+                    // For \z, we need exact length match (no trailing newline allowed)
+                    if (textSpan.Length != MinRequiredLength)
+                    {
+                        // Input length doesn't match required length, fail fast
+                        pos = textSpan.Length;
+                        return false;
+                    }
+                    return true;
 
                 // There's a case-sensitive prefix.  Search for it with ordinal IndexOf.
 
