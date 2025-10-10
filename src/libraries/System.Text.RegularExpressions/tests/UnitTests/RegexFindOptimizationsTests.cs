@@ -85,14 +85,15 @@ namespace System.Text.RegularExpressions.Tests
         }
 
         [Theory]
-        [InlineData(@"^abc$", 0, (int)FindNextStartingPositionMode.TrailingAnchor_FixedLength_LeftToRight_EndZ, (int)RegexNodeKind.Beginning, (int)RegexNodeKind.EndZ, 3)]
-        [InlineData(@"^abc\z", 0, (int)FindNextStartingPositionMode.TrailingAnchor_FixedLength_LeftToRight_End, (int)RegexNodeKind.Beginning, (int)RegexNodeKind.End, 3)]
-        [InlineData(@"\Aabc$", 0, (int)FindNextStartingPositionMode.TrailingAnchor_FixedLength_LeftToRight_EndZ, (int)RegexNodeKind.Beginning, (int)RegexNodeKind.EndZ, 3)]
-        [InlineData(@"\Aabc\z", 0, (int)FindNextStartingPositionMode.TrailingAnchor_FixedLength_LeftToRight_End, (int)RegexNodeKind.Beginning, (int)RegexNodeKind.End, 3)]
-        [InlineData(@"^a{3}$", 0, (int)FindNextStartingPositionMode.TrailingAnchor_FixedLength_LeftToRight_EndZ, (int)RegexNodeKind.Beginning, (int)RegexNodeKind.EndZ, 3)]
-        [InlineData(@"^(abc|def)$", 0, (int)FindNextStartingPositionMode.TrailingAnchor_FixedLength_LeftToRight_EndZ, (int)RegexNodeKind.Beginning, (int)RegexNodeKind.EndZ, 3)]
-        [InlineData(@"^test$", 0, (int)FindNextStartingPositionMode.TrailingAnchor_FixedLength_LeftToRight_EndZ, (int)RegexNodeKind.Beginning, (int)RegexNodeKind.EndZ, 4)]
-        [InlineData(@"^\w{5}$", 0, (int)FindNextStartingPositionMode.TrailingAnchor_FixedLength_LeftToRight_EndZ, (int)RegexNodeKind.Beginning, (int)RegexNodeKind.EndZ, 5)]
+        [InlineData(@"^abc$", 0, (int)FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_EndZ, (int)RegexNodeKind.Beginning, (int)RegexNodeKind.EndZ, 3)]
+        [InlineData(@"^abc\z", 0, (int)FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_End, (int)RegexNodeKind.Beginning, (int)RegexNodeKind.End, 3)]
+        [InlineData(@"\Aabc$", 0, (int)FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_EndZ, (int)RegexNodeKind.Beginning, (int)RegexNodeKind.EndZ, 3)]
+        [InlineData(@"\Aabc\z", 0, (int)FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_End, (int)RegexNodeKind.Beginning, (int)RegexNodeKind.End, 3)]
+        [InlineData(@"\Aabc\Z", 0, (int)FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_EndZ, (int)RegexNodeKind.Beginning, (int)RegexNodeKind.EndZ, 3)]
+        [InlineData(@"^a{3}$", 0, (int)FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_EndZ, (int)RegexNodeKind.Beginning, (int)RegexNodeKind.EndZ, 3)]
+        [InlineData(@"^(abc|def)$", 0, (int)FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_EndZ, (int)RegexNodeKind.Beginning, (int)RegexNodeKind.EndZ, 3)]
+        [InlineData(@"^test$", 0, (int)FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_EndZ, (int)RegexNodeKind.Beginning, (int)RegexNodeKind.EndZ, 4)]
+        [InlineData(@"^\w{5}$", 0, (int)FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_EndZ, (int)RegexNodeKind.Beginning, (int)RegexNodeKind.EndZ, 5)]
         public void DualAnchorDetection(string pattern, int options, int expectedMode, int expectedLeading, int expectedTrailing, int expectedLength)
         {
             RegexFindOptimizations opts = ComputeOptimizations(pattern, (RegexOptions)options);
