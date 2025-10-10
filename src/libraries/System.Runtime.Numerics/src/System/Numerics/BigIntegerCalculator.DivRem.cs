@@ -14,7 +14,7 @@ namespace System.Numerics
 #else
         internal const
 #endif
-        int DivideBurnikelZieglerThreshold = 32;
+        int DivideBurnikelZieglerThreshold = 64;
 
         public static void Divide(ReadOnlySpan<uint> left, uint right, Span<uint> quotient, out uint remainder)
         {

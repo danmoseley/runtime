@@ -16,7 +16,7 @@ namespace System.Numerics
 #else
         internal const
 #endif
-        int SquareThreshold = 32;
+        int SquareThreshold = 64;
 
         public static void Square(ReadOnlySpan<uint> value, Span<uint> bits)
         {
@@ -155,7 +155,7 @@ namespace System.Numerics
 #else
         internal const
 #endif
-            int MultiplyKaratsubaThreshold = 32;
+            int MultiplyKaratsubaThreshold = 64;
         public static void Multiply(ReadOnlySpan<uint> left, ReadOnlySpan<uint> right, Span<uint> bits)
         {
             Debug.Assert(left.Length >= right.Length);
