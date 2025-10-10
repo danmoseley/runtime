@@ -81,8 +81,8 @@ namespace System.Text.RegularExpressions
                     // We have both leading and trailing anchors with a fixed length pattern.
                     // This allows us to quickly reject inputs that don't match the exact length.
                     FindMode = TrailingAnchor == RegexNodeKind.End ?
-                        FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_End :
-                        FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_EndZ;
+                        FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_End :
+                        FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_EndZ;
                     return;
                 }
             }
@@ -105,7 +105,7 @@ namespace System.Text.RegularExpressions
 
             // If there's only a trailing anchor with fixed length, use the existing trailing anchor optimization
             if (!rightToLeft &&
-                !isLeadingPartial &&
+                !isLeadingPartial && // Partial patterns from lookaheads don't have meaningful trailing anchors
                 TrailingAnchor is RegexNodeKind.End or RegexNodeKind.EndZ &&
                 MaxPossibleLength is not null &&
                 MinRequiredLength == MaxPossibleLength)
@@ -636,7 +636,7 @@ namespace System.Text.RegularExpressions
                 // Dual anchor with fixed length: both leading and trailing anchors
                 // This allows us to quickly reject inputs that don't match the exact required length
 
-                case FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_EndZ:
+                case FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_EndZ:
                     // Pattern like ^abc$ or \A...\Z where we know the exact length
                     // $ and \Z allow a trailing newline
                     if (pos != 0)
@@ -658,7 +658,7 @@ namespace System.Text.RegularExpressions
                     pos = textSpan.Length;
                     return false;
 
-                case FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_End:
+                case FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_End:
                     // Pattern like ^abc\z where we know the exact length
                     // \z requires exact match at end of string, no trailing newline allowed
                     if (pos != 0)
@@ -960,9 +960,9 @@ namespace System.Text.RegularExpressions
         TrailingAnchor_FixedLength_LeftToRight_EndZ,
 
         /// <summary>Both a leading "beginning" or "start" anchor and trailing "end" anchor with fixed-length pattern.</summary>
-        DualAnchor_FixedLength_LeftToRight_Beginning_End,
+        DualAnchor_FixedLength_LeftToRight_End,
         /// <summary>Both a leading "beginning" or "start" anchor and trailing "endz" anchor with fixed-length pattern.</summary>
-        DualAnchor_FixedLength_LeftToRight_Beginning_EndZ,
+        DualAnchor_FixedLength_LeftToRight_EndZ,
 
         /// <summary>A multi-character substring at the beginning of the pattern.</summary>
         LeadingString_LeftToRight,

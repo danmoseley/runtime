@@ -640,7 +640,7 @@ namespace System.Text.RegularExpressions
                             return true;
                         }
 
-                    case FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_EndZ:
+                    case FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_EndZ:
                         // Pattern like ^abc$ or \A...\Z with fixed length
                         // Must be at position 0 and length must match exactly or be one longer with trailing \n
                         {
@@ -677,7 +677,7 @@ namespace System.Text.RegularExpressions
                             return true;
                         }
 
-                    case FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_Beginning_End:
+                    case FindNextStartingPositionMode.DualAnchor_FixedLength_LeftToRight_End:
                         // Pattern like ^abc\z or \A...\z with fixed length
                         // Must be at position 0 and length must match exactly (\z doesn't allow trailing newline)
                         {
