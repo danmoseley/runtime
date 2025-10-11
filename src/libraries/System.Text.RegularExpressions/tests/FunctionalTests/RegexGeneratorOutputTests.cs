@@ -1193,5 +1193,54 @@ namespace System.Text.RegularExpressions.Tests
             // The actual pattern string should properly escape the newline for C#
             Assert.Contains("base.pattern = \"\\n\";", actual);
         }
+
+        [Fact]
+        public async Task DualAnchor_EndZ_Generates_Length_Check_With_Newline_Support()
+        {
+            string program = """
+                using System.Text.RegularExpressions;
+                partial class C
+                {
+                    [GeneratedRegex(@"^test$")]
+                    public static partial Regex DualAnchorEndZ();
+                }
+                """;
+
+            string actual = await RegexGeneratorHelper.GenerateSourceText(program, allowUnsafe: true, checkOverflow: false);
+            
+            // The dual anchor optimization with EndZ ($ or \Z) should include length checks
+            Assert.Contains("inputSpan.Length", actual);
+            
+            // Should have logic to allow trailing newline for $ anchor (length or length+1 with \n)
+            Assert.Contains("'\\n'", actual);
+            
+            // The pattern should be correctly represented
+            Assert.Contains("^test$", actual);
+        }
+
+        [Fact]
+        public async Task DualAnchor_End_Generates_Length_Check_Without_Newline_Support()
+        {
+            string program = """
+                using System.Text.RegularExpressions;
+                partial class C
+                {
+                    [GeneratedRegex(@"^test\z")]
+                    public static partial Regex DualAnchorEnd();
+                }
+                """;
+
+            string actual = await RegexGeneratorHelper.GenerateSourceText(program, allowUnsafe: true, checkOverflow: false);
+            
+            // The dual anchor optimization with End (\z) should include length checks
+            Assert.Contains("inputSpan.Length", actual);
+            
+            // The pattern should be correctly represented with \z
+            Assert.Contains("^test\\z", actual);
+            
+            // Unlike EndZ, the code should check for exact length match (no trailing newline allowed)
+            // The generated code will contain the fixed length value 4 for "test"
+            Assert.Contains("4", actual);
+        }
     }
 }
