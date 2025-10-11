@@ -2807,6 +2807,13 @@ namespace System.Text.RegularExpressions.Tests
         [InlineData("^тест$", "xтест", false)]
         [InlineData("^测试$", "测试", true)]       // Chinese characters
         [InlineData("^测试$", "测试x", false)]
+        // With trailing newlines - test \Z and $ allow newline, \z does not
+        [InlineData("^test$", "test\n", true)]      // $ allows trailing newline
+        [InlineData("^test\\z", "test\n", false)]   // \z does not allow trailing newline
+        [InlineData("^test\\Z", "test\n", true)]    // \Z allows trailing newline
+        [InlineData("\\Atest$", "test\n", true)]    // \A with $ allows trailing newline
+        [InlineData("\\Atest\\z", "test\n", false)] // \A with \z does not allow trailing newline
+        [InlineData("\\Atest\\Z", "test\n", true)]  // \A with \Z allows trailing newline
         // With RegexOptions
         [InlineData("^abc$", "abc", true, RegexOptions.IgnoreCase)]
         [InlineData("^abc$", "ABC", true, RegexOptions.IgnoreCase)]
