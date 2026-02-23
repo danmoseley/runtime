@@ -171,6 +171,8 @@ namespace System.Text.RegularExpressions
             // We're now left-to-right only and looking for multiple prefixes and/or sets.
 
             // If there are multiple leading strings, we can search for any of them.
+            string[]? caseSensitivePrefixes = null;
+            float leadingStringsFrequency = -1;
             if (!interpreter) // this works in the interpreter, but we avoid it due to additional cost during construction
             {
                 if (RegexPrefixAnalyzer.FindPrefixes(root, ignoreCase: true) is { Length: > 1 } caseInsensitivePrefixes)
@@ -183,18 +185,11 @@ namespace System.Text.RegularExpressions
                     return;
                 }
 
-                // TODO: While some benchmarks benefit from this significantly, others regressed a bit (in particular those with few
-                //       matches). Before enabling this, we need to investigate the performance impact on real-world scenarios,
-                //       and see if there are ways to reduce the impact.
-                //if (RegexPrefixAnalyzer.FindPrefixes(root, ignoreCase: false) is { Length: > 1 } caseSensitivePrefixes)
-                //{
-                //    LeadingPrefixes = caseSensitivePrefixes;
-                //    FindMode = FindNextStartingPositionMode.LeadingStrings_LeftToRight;
-#if SYSTEM_TEXT_REGULAREXPRESSIONS
-                //    LeadingStrings = SearchValues.Create(LeadingPrefixes, StringComparison.Ordinal);
-#endif
-                //    return;
-                //}
+                // Compute case-sensitive leading prefixes, but don't commit yet. We'll compare
+                // their starting-char frequency against the best FixedDistanceSet below to decide
+                // which strategy to use.
+                caseSensitivePrefixes = RegexPrefixAnalyzer.FindPrefixes(root, ignoreCase: false) is { Length: > 1 } csp ? csp : null;
+                leadingStringsFrequency = caseSensitivePrefixes is not null ? SumStartingCharFrequencies(caseSensitivePrefixes) : -1;
             }
 
             // Build up a list of all of the sets that are a fixed distance from the start of the expression.
@@ -226,6 +221,39 @@ namespace System.Text.RegularExpressions
                 // Sort the sets by "quality", such that whatever set is first is the one deemed most efficient to use.
                 // In some searches, we may use multiple sets, so we want the subsequent ones to also be the efficiency runners-up.
                 RegexPrefixAnalyzer.SortFixedDistanceSetsByQuality(fixedDistanceSets);
+
+                // If we have case-sensitive leading prefixes, compare the frequency of their starting characters
+                // against the best fixed-distance set's characters. If the best set isn't more selective than the
+                // starting chars (i.e. its frequency is at least as high), prefer LeadingStrings (SearchValues)
+                // which can match full multi-character prefixes simultaneously. Also prefer LeadingStrings when
+                // the best set is negated or range-based (no Chars), since those are weak filters.
+                if (leadingStringsFrequency > 0)
+                {
+                    bool preferLeadingStrings = true;
+                    if (fixedDistanceSets[0].Chars is { } bestSetChars &&
+                        !fixedDistanceSets[0].Negated)
+                    {
+                        ReadOnlySpan<float> frequency = RegexPrefixAnalyzer.Frequency;
+                        Debug.Assert(frequency.Length == 128);
+                        float bestSetFrequency = 0;
+                        foreach (char c in bestSetChars)
+                        {
+                            bestSetFrequency += c < frequency.Length ? frequency[c] : 0;
+                        }
+
+                        preferLeadingStrings = bestSetFrequency >= leadingStringsFrequency;
+                    }
+
+                    if (preferLeadingStrings)
+                    {
+                        LeadingPrefixes = caseSensitivePrefixes!;
+                        FindMode = FindNextStartingPositionMode.LeadingStrings_LeftToRight;
+#if SYSTEM_TEXT_REGULAREXPRESSIONS
+                        LeadingStrings = SearchValues.Create(LeadingPrefixes, StringComparison.Ordinal);
+#endif
+                        return;
+                    }
+                }
 
                 // If there is no literal after the loop, use whatever set we got.
                 // If there is a literal after the loop, consider it to be better than a negated set and better than a set with many characters.
@@ -270,6 +298,17 @@ namespace System.Text.RegularExpressions
                 FindMode = FindNextStartingPositionMode.LiteralAfterLoop_LeftToRight;
                 LiteralAfterLoop = literalAfterLoop;
                 _asciiLookups = new uint[1][];
+                return;
+            }
+
+            // If we have case-sensitive leading prefixes and nothing else was selected, use them.
+            if (leadingStringsFrequency > 0)
+            {
+                LeadingPrefixes = caseSensitivePrefixes!;
+                FindMode = FindNextStartingPositionMode.LeadingStrings_LeftToRight;
+#if SYSTEM_TEXT_REGULAREXPRESSIONS
+                LeadingStrings = SearchValues.Create(LeadingPrefixes, StringComparison.Ordinal);
+#endif
                 return;
             }
         }
@@ -867,6 +906,45 @@ namespace System.Text.RegularExpressions
             }
         }
 #endif
+
+        /// <summary>
+        /// Computes the sum of frequencies of the distinct starting characters of the prefixes.
+        /// Each frequency is a percentage (0..100) from <see cref="RegexPrefixAnalyzer.Frequency"/>,
+        /// so the returned sum increases with the number and commonness of distinct starting chars.
+        /// Returns -1 if any prefix starts with a non-ASCII character (no frequency data available).
+        /// </summary>
+        private static float SumStartingCharFrequencies(string[] prefixes)
+        {
+            ReadOnlySpan<float> frequency = RegexPrefixAnalyzer.Frequency;
+            Debug.Assert(frequency.Length == 128);
+            float totalFrequency = 0;
+
+            // Use two longs as a 128-bit bitset to track seen ASCII chars.
+            long seenLo = 0, seenHi = 0;
+            foreach (string prefix in prefixes)
+            {
+                char c = prefix[0];
+                if (c >= frequency.Length)
+                {
+                    // Non-ASCII starting chars have no frequency data; bail out and let
+                    // FixedDistanceSets choose a strategy, since it can examine all offsets.
+                    return -1;
+                }
+
+                // Skip duplicate starting chars.
+                ref long seen = ref (c < 64 ? ref seenLo : ref seenHi);
+                long mask = 1L << (c & 63);
+                if ((seen & mask) != 0)
+                {
+                    continue;
+                }
+                seen |= mask;
+
+                totalFrequency += frequency[c];
+            }
+
+            return totalFrequency;
+        }
     }
 
     /// <summary>Mode to use for searching for the next location of a possible match.</summary>
