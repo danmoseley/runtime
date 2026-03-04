@@ -1211,6 +1211,15 @@ namespace System.Text.RegularExpressions
 
                     return new RegexNode(RegexNodeKind.Set, (_options & ~RegexOptions.IgnoreCase), cc.ToStringClass());
 
+                case 'R':
+                    if ((_options & RegexOptions.ECMAScript) != 0)
+                    {
+                        // In ECMAScript mode, \R is not recognized as a special escape (existing behavior).
+                        goto default;
+                    }
+                    _pos++;
+                    return scanOnly ? null : NewLineSequenceNode();
+
                 default:
                     RegexNode? result = ScanBasicBackslash(scanOnly);
                     if (result != null && result.Kind == RegexNodeKind.Backreference && (result.Options & RegexOptions.IgnoreCase) != 0)
@@ -1750,6 +1759,42 @@ namespace System.Text.RegularExpressions
             guard.AddChild(crThenLf);
 
             return guard;
+        }
+
+        /// <summary>
+        /// Builds a tree equivalent to \R (Unicode line ending sequence, per TR18 RL1.6).
+        /// Matches \r\n as a single unit, or any single Unicode newline character.
+        /// Equivalent to: (?&gt;\r\n|[\n\v\f\r\u0085\u2028\u2029])
+        /// </summary>
+        private RegexNode NewLineSequenceNode()
+        {
+            RegexOptions opts = _options & ~RegexOptions.IgnoreCase;
+            bool rtl = (_options & RegexOptions.RightToLeft) != 0;
+
+            // Branch 1: \r\n (children reversed for RTL since the engine scans right-to-left)
+            var crLf = new RegexNode(RegexNodeKind.Concatenate, opts);
+            crLf.AddChild(new RegexNode(RegexNodeKind.One, opts, rtl ? '\n' : '\r'));
+            crLf.AddChild(new RegexNode(RegexNodeKind.One, opts, rtl ? '\r' : '\n'));
+
+            // Branch 2: [\n\v\f\r\u0085\u2028\u2029]
+            var singleNewline = new RegexNode(RegexNodeKind.Set, opts, RegexCharClass.AnyNewLineClass);
+
+            // \r\n|[\n\v\f\r\u0085\u2028\u2029]
+            var alt = new RegexNode(RegexNodeKind.Alternate, opts);
+            alt.AddChild(crLf);
+            alt.AddChild(singleNewline);
+
+            // Wrap in atomic group to prevent backtracking from \r\n to just \r.
+            // NonBacktracking engine is inherently atomic (DFA), so skip the wrapper
+            // it doesn't support (and doesn't need).
+            if ((_options & RegexOptions.NonBacktracking) != 0)
+            {
+                return alt;
+            }
+
+            var atomic = new RegexNode(RegexNodeKind.Atomic, opts);
+            atomic.AddChild(alt);
+            return atomic;
         }
 
         /// <summary>

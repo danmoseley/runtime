@@ -4178,5 +4178,167 @@ namespace System.Text.RegularExpressions.Tests
             }
         }
 
+        [Theory]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework, @"Doesn't support \R")]
+        [MemberData(nameof(BackslashR_TestData))]
+        public async Task BackslashR(RegexEngine engine, string pattern, string input, RegexOptions options, string[] expectedValues)
+        {
+            Regex r = await RegexHelpers.GetRegexAsync(engine, pattern, options);
+            MatchCollection matches = r.Matches(input);
+            Assert.Equal(expectedValues.Length, matches.Count);
+            for (int i = 0; i < expectedValues.Length; i++)
+            {
+                Assert.Equal(expectedValues[i], matches[i].Value);
+            }
+        }
+
+        public static IEnumerable<object[]> BackslashR_TestData()
+        {
+            foreach (RegexEngine engine in RegexHelpers.AvailableEngines)
+            {
+                // \R matches each newline type as a single unit
+                yield return new object[] { engine, @"\R", "\n", RegexOptions.None, new[] { "\n" } };
+                yield return new object[] { engine, @"\R", "\r", RegexOptions.None, new[] { "\r" } };
+                yield return new object[] { engine, @"\R", "\r\n", RegexOptions.None, new[] { "\r\n" } };
+                yield return new object[] { engine, @"\R", "\v", RegexOptions.None, new[] { "\v" } };
+                yield return new object[] { engine, @"\R", "\f", RegexOptions.None, new[] { "\f" } };
+                yield return new object[] { engine, @"\R", "\u0085", RegexOptions.None, new[] { "\u0085" } };
+                yield return new object[] { engine, @"\R", "\u2028", RegexOptions.None, new[] { "\u2028" } };
+                yield return new object[] { engine, @"\R", "\u2029", RegexOptions.None, new[] { "\u2029" } };
+
+                // \R does NOT match non-newline characters
+                yield return new object[] { engine, @"\R", "abc", RegexOptions.None, Array.Empty<string>() };
+                yield return new object[] { engine, @"\R", " ", RegexOptions.None, Array.Empty<string>() };
+                yield return new object[] { engine, @"\R", "\t", RegexOptions.None, Array.Empty<string>() };
+
+                // \r\n is atomic: \R matches it as a single two-char unit
+                yield return new object[] { engine, @"\R", "\r\n", RegexOptions.None, new[] { "\r\n" } };
+                yield return new object[] { engine, @"\R+", "\r\n", RegexOptions.None, new[] { "\r\n" } };
+
+                // Multiple newlines: each is matched separately
+                yield return new object[] { engine, @"\R", "\r\n\n\r", RegexOptions.None, new[] { "\r\n", "\n", "\r" } };
+                yield return new object[] { engine, @"\R", "\n\r\n\r", RegexOptions.None, new[] { "\n", "\r\n", "\r" } };
+                yield return new object[] { engine, @"\R", "\r\r\n", RegexOptions.None, new[] { "\r", "\r\n" } };
+                yield return new object[] { engine, @"\R", "\u0085\u2028\u2029", RegexOptions.None, new[] { "\u0085", "\u2028", "\u2029" } };
+
+                // \R+ matches consecutive newlines greedily
+                yield return new object[] { engine, @"\R+", "\r\n\n\r\u0085", RegexOptions.None, new[] { "\r\n\n\r\u0085" } };
+                yield return new object[] { engine, @"\R+", "\v\f\r\n", RegexOptions.None, new[] { "\v\f\r\n" } };
+
+                // \R in context: splitting lines
+                yield return new object[] { engine, @"[^\r\n\v\f\u0085\u2028\u2029]+", "foo\r\nbar\rbaz\n", RegexOptions.None, new[] { "foo", "bar", "baz" } };
+                // NonBacktracking doesn't support lookaheads
+                if (engine != RegexEngine.NonBacktracking)
+                {
+                    yield return new object[] { engine, @".+(?=\R|\z)", "foo\r\nbar\rbaz", RegexOptions.None, new[] { "foo\r", "bar\rbaz" } }; // without AnyNewLine, . matches \r
+                }
+
+                // \R with AnyNewLine: .+ stops at newlines, \R matches them
+                // NonBacktracking doesn't support AnyNewLine
+                if (engine != RegexEngine.NonBacktracking)
+                {
+                    yield return new object[] { engine, @".+\R", "foo\r\nbar\n", RegexHelpers.RegexOptionAnyNewLine, new[] { "foo\r\n", "bar\n" } };
+                }
+
+                // \R with quantifiers
+                yield return new object[] { engine, @"\R{2}", "\r\n\n", RegexOptions.None, new[] { "\r\n\n" } };
+                yield return new object[] { engine, @"\R{2}", "\n\n", RegexOptions.None, new[] { "\n\n" } };
+                yield return new object[] { engine, @"\R?", "a", RegexOptions.None, new[] { "", "", } };
+                yield return new object[] { engine, @"a\R?b", "a\nb", RegexOptions.None, new[] { "a\nb" } };
+                yield return new object[] { engine, @"a\R?b", "a\r\nb", RegexOptions.None, new[] { "a\r\nb" } };
+                yield return new object[] { engine, @"a\R?b", "ab", RegexOptions.None, new[] { "ab" } };
+
+                // \R with capturing groups
+                yield return new object[] { engine, @"(\R)", "\r\n", RegexOptions.None, new[] { "\r\n" } };
+                yield return new object[] { engine, @"foo(\R)bar", "foo\nbar", RegexOptions.None, new[] { "foo\nbar" } };
+                yield return new object[] { engine, @"foo(\R)bar", "foo\r\nbar", RegexOptions.None, new[] { "foo\r\nbar" } };
+
+                // \R with RightToLeft — same matches as LTR, in reverse order
+                // NonBacktracking doesn't support RightToLeft
+                if (engine != RegexEngine.NonBacktracking)
+                {
+                    yield return new object[] { engine, @"\R", "\r\n", RegexOptions.RightToLeft, new[] { "\r\n" } };
+                    yield return new object[] { engine, @"\R", "\n\r\n\r", RegexOptions.RightToLeft, new[] { "\r", "\r\n", "\n" } };
+                }
+
+                // \R works without AnyNewLine option (it's a standalone escape)
+                yield return new object[] { engine, @"\R", "\r\n", RegexOptions.None, new[] { "\r\n" } };
+                yield return new object[] { engine, @"\R", "\r\n", RegexOptions.Compiled, new[] { "\r\n" } };
+
+                // \R with IgnoreCase (should be unaffected)
+                yield return new object[] { engine, @"\R", "\n", RegexOptions.IgnoreCase, new[] { "\n" } };
+
+                // \R with Multiline (should be unaffected — \R is about matching, not anchors)
+                yield return new object[] { engine, @"\R", "\n", RegexOptions.Multiline, new[] { "\n" } };
+
+                // \R with Singleline — \R is unaffected by Singleline (it always matches newlines, never non-newlines)
+                yield return new object[] { engine, @"\R", "\n", RegexOptions.Singleline, new[] { "\n" } };
+                yield return new object[] { engine, @"\R", "\r\n", RegexOptions.Singleline, new[] { "\r\n" } };
+                yield return new object[] { engine, @"\R", "\u0085", RegexOptions.Singleline, new[] { "\u0085" } };
+                yield return new object[] { engine, @"\R", "abc", RegexOptions.Singleline, Array.Empty<string>() };
+                yield return new object[] { engine, @".\R.", "a\nb", RegexOptions.Singleline, new[] { "a\nb" } };
+
+                // \R with Singleline + AnyNewLine
+                // NonBacktracking doesn't support AnyNewLine
+                if (engine != RegexEngine.NonBacktracking)
+                {
+                    yield return new object[] { engine, @"\R", "\r\n", RegexOptions.Singleline | RegexHelpers.RegexOptionAnyNewLine, new[] { "\r\n" } };
+                    yield return new object[] { engine, @".\R.", "a\r\nb", RegexOptions.Singleline | RegexHelpers.RegexOptionAnyNewLine, new[] { "a\r\nb" } };
+                }
+            }
+        }
+
+        [Theory]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework, @"Doesn't support \R")]
+        [MemberData(nameof(BackslashR_LiteralOnECMAScript_TestData))]
+        public async Task BackslashR_LiteralOnECMAScript(RegexEngine engine, string pattern, string input, string[] expectedValues)
+        {
+            // In ECMAScript mode, \R is not a special escape — it means literal 'R'
+            Regex r = await RegexHelpers.GetRegexAsync(engine, pattern, RegexOptions.ECMAScript);
+            MatchCollection matches = r.Matches(input);
+            Assert.Equal(expectedValues.Length, matches.Count);
+            for (int i = 0; i < expectedValues.Length; i++)
+            {
+                Assert.Equal(expectedValues[i], matches[i].Value);
+            }
+        }
+
+        public static IEnumerable<object[]> BackslashR_LiteralOnECMAScript_TestData()
+        {
+            foreach (RegexEngine engine in RegexHelpers.AvailableEngines)
+            {
+                // NonBacktracking doesn't support ECMAScript mode
+                if (engine == RegexEngine.NonBacktracking)
+                    continue;
+
+                // \R in ECMAScript mode matches literal 'R' (backward compat)
+                yield return new object[] { engine, @"\R", "R", new[] { "R" } };
+                yield return new object[] { engine, @"\R", "r", Array.Empty<string>() };
+                yield return new object[] { engine, @"\R", "\n", Array.Empty<string>() };
+                yield return new object[] { engine, @"\R", "\r\n", Array.Empty<string>() };
+                yield return new object[] { engine, @"\R+", "RRR", new[] { "RRR" } };
+            }
+        }
+
+        [Fact]
+        public void BackslashR_ThrowsOnNetFramework()
+        {
+            // Documents that \R was never a valid escape prior to this feature.
+            // On .NET Framework, \R throws RegexParseException (UnrecognizedEscape).
+            // This confirms the feature is non-breaking: no existing pattern could contain \R.
+            if (PlatformDetection.IsNetFramework)
+            {
+                Assert.ThrowsAny<ArgumentException>(() => new Regex(@"\R"));
+            }
+        }
+
+        [Fact]
+        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework)]
+        public void BackslashR_InsideCharacterClass_Throws()
+        {
+            // \R is a multi-character sequence escape; it is not valid inside character classes.
+            Assert.Throws<RegexParseException>(() => new Regex(@"[\R]"));
+        }
+
     }
 }
