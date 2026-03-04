@@ -4318,6 +4318,12 @@ namespace System.Text.RegularExpressions.Tests
                 // \R with lazy quantifier
                 yield return new object[] { engine, @"\R+?", "\r\n\n", RegexOptions.None, new[] { "\r\n", "\n" } }; // lazy: takes \r\n (atomic, can't split), then \n separately
                 yield return new object[] { engine, @"\R+?", "\n\n", RegexOptions.None, new[] { "\n", "\n" } };
+
+                // \R with anchors
+                yield return new object[] { engine, @"^\R$", "\n", RegexOptions.None, new[] { "\n" } };
+                yield return new object[] { engine, @"^\R$", "\r\n", RegexOptions.None, new[] { "\r\n" } };
+                yield return new object[] { engine, @"^\R$", "a", RegexOptions.None, Array.Empty<string>() };
+                yield return new object[] { engine, @"^\R+$", "\r\n\n\r", RegexOptions.None, new[] { "\r\n\n\r" } };
             }
         }
 
