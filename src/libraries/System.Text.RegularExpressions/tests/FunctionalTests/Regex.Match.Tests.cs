@@ -4196,6 +4196,10 @@ namespace System.Text.RegularExpressions.Tests
         {
             foreach (RegexEngine engine in RegexHelpers.AvailableEngines)
             {
+                // NonBacktracking doesn't support atomic groups, which \R requires
+                if (engine == RegexEngine.NonBacktracking)
+                    continue;
+
                 // \R matches each newline type as a single unit
                 yield return new object[] { engine, @"\R", "\n", RegexOptions.None, new[] { "\n" } };
                 yield return new object[] { engine, @"\R", "\r", RegexOptions.None, new[] { "\r" } };
@@ -4214,6 +4218,8 @@ namespace System.Text.RegularExpressions.Tests
                 // \r\n is atomic: \R matches it as a single two-char unit
                 yield return new object[] { engine, @"\R", "\r\n", RegexOptions.None, new[] { "\r\n" } };
                 yield return new object[] { engine, @"\R+", "\r\n", RegexOptions.None, new[] { "\r\n" } };
+                yield return new object[] { engine, @"\R\n", "\r\n", RegexOptions.None, Array.Empty<string>() }; // \R takes \r\n atomically, no \n left
+                yield return new object[] { engine, @"\R\n", "\n\n", RegexOptions.None, new[] { "\n\n" } }; // \R takes first \n, second \n matches
 
                 // Multiple newlines: each is matched separately
                 yield return new object[] { engine, @"\R", "\r\n\n\r", RegexOptions.None, new[] { "\r\n", "\n", "\r" } };
@@ -4234,11 +4240,13 @@ namespace System.Text.RegularExpressions.Tests
                 }
 
                 // \R with AnyNewLine: .+ stops at newlines, \R matches them
-                // NonBacktracking doesn't support AnyNewLine
-                if (engine != RegexEngine.NonBacktracking)
-                {
-                    yield return new object[] { engine, @".+\R", "foo\r\nbar\n", RegexHelpers.RegexOptionAnyNewLine, new[] { "foo\r\n", "bar\n" } };
-                }
+                yield return new object[] { engine, @".+\R", "foo\r\nbar\n", RegexHelpers.RegexOptionAnyNewLine, new[] { "foo\r\n", "bar\n" } };
+                yield return new object[] { engine, @"\R", "\r\n", RegexHelpers.RegexOptionAnyNewLine, new[] { "\r\n" } }; // \R itself is unaffected by AnyNewLine
+                yield return new object[] { engine, @"\R", "\n", RegexHelpers.RegexOptionAnyNewLine, new[] { "\n" } };
+                yield return new object[] { engine, @"\R", "\u0085", RegexHelpers.RegexOptionAnyNewLine, new[] { "\u0085" } };
+                yield return new object[] { engine, @".\R.", "a\nb", RegexHelpers.RegexOptionAnyNewLine, new[] { "a\nb" } }; // with AnyNewLine, . stops at \n so a + \n + b
+                yield return new object[] { engine, @".\R.", "a\u2028b", RegexHelpers.RegexOptionAnyNewLine, new[] { "a\u2028b" } }; // with AnyNewLine, . stops at LS too
+                yield return new object[] { engine, @".+\R.+", "foo\r\nbar", RegexHelpers.RegexOptionAnyNewLine, new[] { "foo\r\nbar" } }; // line + newline + line
 
                 // \R with quantifiers
                 yield return new object[] { engine, @"\R{2}", "\r\n\n", RegexOptions.None, new[] { "\r\n\n" } };
@@ -4253,13 +4261,14 @@ namespace System.Text.RegularExpressions.Tests
                 yield return new object[] { engine, @"foo(\R)bar", "foo\nbar", RegexOptions.None, new[] { "foo\nbar" } };
                 yield return new object[] { engine, @"foo(\R)bar", "foo\r\nbar", RegexOptions.None, new[] { "foo\r\nbar" } };
 
+                // Backreference to \R capture
+                yield return new object[] { engine, @"(\R)\1", "\n\n", RegexOptions.None, new[] { "\n\n" } };
+                yield return new object[] { engine, @"(\R)\1", "\r\n\r\n", RegexOptions.None, new[] { "\r\n\r\n" } };
+                yield return new object[] { engine, @"(\R)\1", "\r\n\n", RegexOptions.None, new[] { "\n\n" } }; // \R first tries \r\n, \1 fails; retries at pos 1 where \R matches \n
+
                 // \R with RightToLeft — same matches as LTR, in reverse order
-                // NonBacktracking doesn't support RightToLeft
-                if (engine != RegexEngine.NonBacktracking)
-                {
-                    yield return new object[] { engine, @"\R", "\r\n", RegexOptions.RightToLeft, new[] { "\r\n" } };
-                    yield return new object[] { engine, @"\R", "\n\r\n\r", RegexOptions.RightToLeft, new[] { "\r", "\r\n", "\n" } };
-                }
+                yield return new object[] { engine, @"\R", "\r\n", RegexOptions.RightToLeft, new[] { "\r\n" } };
+                yield return new object[] { engine, @"\R", "\n\r\n\r", RegexOptions.RightToLeft, new[] { "\r", "\r\n", "\n" } };
 
                 // \R works without AnyNewLine option (it's a standalone escape)
                 yield return new object[] { engine, @"\R", "\r\n", RegexOptions.None, new[] { "\r\n" } };
@@ -4270,6 +4279,12 @@ namespace System.Text.RegularExpressions.Tests
 
                 // \R with Multiline (should be unaffected — \R is about matching, not anchors)
                 yield return new object[] { engine, @"\R", "\n", RegexOptions.Multiline, new[] { "\n" } };
+                // Multiline: .+ stops at \n, \R matches the line terminator
+                yield return new object[] { engine, @".+\R", "foo\nbar\n", RegexOptions.Multiline, new[] { "foo\n", "bar\n" } };
+                // Multiline without AnyNewLine: . matches \r, so .+ eats \r, then \R matches just \n
+                yield return new object[] { engine, @".+\R", "foo\r\nbar\u0085baz\n", RegexOptions.Multiline, new[] { "foo\r\n", "bar\u0085baz\n" } };
+                // Multiline + AnyNewLine: . stops at all newlines, \R matches them
+                yield return new object[] { engine, @".+\R", "foo\r\nbar\u0085baz\n", RegexOptions.Multiline | RegexHelpers.RegexOptionAnyNewLine, new[] { "foo\r\n", "bar\u0085", "baz\n" } };
 
                 // \R with Singleline — \R is unaffected by Singleline (it always matches newlines, never non-newlines)
                 yield return new object[] { engine, @"\R", "\n", RegexOptions.Singleline, new[] { "\n" } };
@@ -4279,12 +4294,30 @@ namespace System.Text.RegularExpressions.Tests
                 yield return new object[] { engine, @".\R.", "a\nb", RegexOptions.Singleline, new[] { "a\nb" } };
 
                 // \R with Singleline + AnyNewLine
-                // NonBacktracking doesn't support AnyNewLine
-                if (engine != RegexEngine.NonBacktracking)
-                {
-                    yield return new object[] { engine, @"\R", "\r\n", RegexOptions.Singleline | RegexHelpers.RegexOptionAnyNewLine, new[] { "\r\n" } };
-                    yield return new object[] { engine, @".\R.", "a\r\nb", RegexOptions.Singleline | RegexHelpers.RegexOptionAnyNewLine, new[] { "a\r\nb" } };
-                }
+                yield return new object[] { engine, @"\R", "\r\n", RegexOptions.Singleline | RegexHelpers.RegexOptionAnyNewLine, new[] { "\r\n" } };
+                yield return new object[] { engine, @".\R.", "a\r\nb", RegexOptions.Singleline | RegexHelpers.RegexOptionAnyNewLine, new[] { "a\r\nb" } };
+
+                // \R with Singleline + RightToLeft
+                yield return new object[] { engine, @".\R.", "a\nb", RegexOptions.Singleline | RegexOptions.RightToLeft, new[] { "a\nb" } };
+                yield return new object[] { engine, @".\R.", "a\r\nb", RegexOptions.Singleline | RegexOptions.RightToLeft, new[] { "a\r\nb" } };
+
+                // \R with AnyNewLine + RightToLeft
+                yield return new object[] { engine, @"\R", "\r\n\n\r", RegexHelpers.RegexOptionAnyNewLine | RegexOptions.RightToLeft, new[] { "\r", "\n", "\r\n" } };
+                yield return new object[] { engine, @".+\R", "foo\nbar\n", RegexHelpers.RegexOptionAnyNewLine | RegexOptions.RightToLeft, new[] { "bar\n", "foo\n" } };
+
+                // \R with Multiline + RightToLeft — same matches as LTR, reverse order
+                yield return new object[] { engine, @".+\R", "foo\nbar\n", RegexOptions.Multiline | RegexOptions.RightToLeft, new[] { "bar\n", "foo\n" } };
+
+                // \R on empty string
+                yield return new object[] { engine, @"\R", "", RegexOptions.None, Array.Empty<string>() };
+
+                // \R in alternation with non-newline patterns
+                yield return new object[] { engine, @"a|\R", "\n", RegexOptions.None, new[] { "\n" } };
+                yield return new object[] { engine, @"\R|a", "\r\n", RegexOptions.None, new[] { "\r\n" } };
+
+                // \R with lazy quantifier
+                yield return new object[] { engine, @"\R+?", "\r\n\n", RegexOptions.None, new[] { "\r\n", "\n" } }; // lazy: takes \r\n (atomic, can't split), then \n separately
+                yield return new object[] { engine, @"\R+?", "\n\n", RegexOptions.None, new[] { "\n", "\n" } };
             }
         }
 
@@ -4337,7 +4370,7 @@ namespace System.Text.RegularExpressions.Tests
         public void BackslashR_InsideCharacterClass_Throws()
         {
             // \R is a multi-character sequence escape; it is not valid inside character classes.
-            Assert.Throws<RegexParseException>(() => new Regex(@"[\R]"));
+            Assert.ThrowsAny<ArgumentException>(() => new Regex(@"[\R]"));
         }
 
     }

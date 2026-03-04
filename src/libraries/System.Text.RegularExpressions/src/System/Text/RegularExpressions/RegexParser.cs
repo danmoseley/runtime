@@ -1785,13 +1785,6 @@ namespace System.Text.RegularExpressions
             alt.AddChild(singleNewline);
 
             // Wrap in atomic group to prevent backtracking from \r\n to just \r.
-            // NonBacktracking engine is inherently atomic (DFA), so skip the wrapper
-            // it doesn't support (and doesn't need).
-            if ((_options & RegexOptions.NonBacktracking) != 0)
-            {
-                return alt;
-            }
-
             var atomic = new RegexNode(RegexNodeKind.Atomic, opts);
             atomic.AddChild(alt);
             return atomic;
