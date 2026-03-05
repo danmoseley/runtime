@@ -4328,7 +4328,6 @@ namespace System.Text.RegularExpressions.Tests
         }
 
         [Theory]
-        [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework, @"Doesn't support \R")]
         [MemberData(nameof(BackslashR_LiteralOnECMAScript_TestData))]
         public async Task BackslashR_LiteralOnECMAScript(RegexEngine engine, string pattern, string input, string[] expectedValues)
         {
