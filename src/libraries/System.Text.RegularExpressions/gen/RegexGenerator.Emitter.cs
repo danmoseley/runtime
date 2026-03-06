@@ -918,6 +918,7 @@ namespace System.Text.RegularExpressions.Generator
                             goto case FindNextStartingPositionMode.NoSearch;
 
                         case FindNextStartingPositionMode.NoSearch:
+                            writer.WriteLine("base.runtextpos = pos;");
                             writer.WriteLine("return true;");
                             findEndsInAlwaysReturningTrue = true;
                             break;

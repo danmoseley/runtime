@@ -492,7 +492,11 @@ namespace System.Text.RegularExpressions
                     goto case FindNextStartingPositionMode.NoSearch;
 
                 case FindNextStartingPositionMode.NoSearch:
+                    // base.runtextpos = pos;
                     // return true;
+                    Ldthis();
+                    Ldloc(pos);
+                    Stfld(RuntextposField);
                     Ldc(1);
                     Ret();
                     break;
