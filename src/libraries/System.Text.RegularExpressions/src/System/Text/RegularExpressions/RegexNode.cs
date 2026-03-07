@@ -373,6 +373,11 @@ namespace System.Text.RegularExpressions
             Debug.Assert(rootNode.Parent is null);
             Debug.Assert(rootNode.ChildCount() == 1);
 
+            // Reduce the full tree. With deferred reduction (parser uses AddChildMinimal),
+            // nodes haven't been fully reduced during parsing, so a full reduction pass is needed
+            // before the optimization passes can operate correctly.
+            rootNode.FinalReduce();
+
             // Only apply optimization when LTR to avoid needing additional code for the much rarer RTL case.
             // Also only apply these optimizations when not using NonBacktracking, as these optimizations are
             // all about avoiding things that are impactful for the backtracking engines but nops for non-backtracking.
@@ -625,6 +630,31 @@ namespace System.Text.RegularExpressions
                 RegexNodeKind.Set or RegexNodeKind.Setloop or RegexNodeKind.Setloopatomic or RegexNodeKind.Setlazy => ReduceSet(),
                 RegexNodeKind.ExpressionConditional => ReduceExpressionConditional(),
                 RegexNodeKind.BackreferenceConditional => ReduceBackreferenceConditional(),
+                _ => this,
+            };
+        }
+
+        /// <summary>
+        /// Minimal reduction for use during parsing when full reduction is deferred to FinalOptimize.
+        /// Only strips IgnoreCase, unwraps Group nodes, and simplifies 0/1-child Concatenation/Alternation.
+        /// </summary>
+        private RegexNode ReduceMinimal()
+        {
+            // Remove IgnoreCase option from everything except a Backreference
+            switch (Kind)
+            {
+                default:
+                    Options &= ~RegexOptions.IgnoreCase;
+                    break;
+
+                case RegexNodeKind.Backreference:
+                    break;
+            }
+
+            return Kind switch
+            {
+                RegexNodeKind.Group => ReduceGroup(),
+                RegexNodeKind.Alternate or RegexNodeKind.Concatenate => ReplaceNodeIfUnnecessary(),
                 _ => this,
             };
         }
@@ -3175,6 +3205,30 @@ namespace System.Text.RegularExpressions
             newChild.Parent = this; // so that the child can see its parent while being reduced
             newChild = newChild.Reduce();
             newChild.Parent = this; // in case Reduce returns a different node that needs to be reparented
+
+            if (Children is null)
+            {
+                Children = newChild;
+            }
+            else if (Children is RegexNode currentChild)
+            {
+                Children = new List<RegexNode>() { currentChild, newChild };
+            }
+            else
+            {
+                ((List<RegexNode>)Children).Add(newChild);
+            }
+        }
+
+        /// <summary>
+        /// Adds a child with only minimal reduction (Group unwrap, 0/1-child Concatenation/Alternation
+        /// unwrap, and IgnoreCase strip). Used by the parser to defer full reduction to FinalOptimize.
+        /// </summary>
+        internal void AddChildMinimal(RegexNode newChild)
+        {
+            newChild.Parent = this;
+            newChild = newChild.ReduceMinimal();
+            newChild.Parent = this;
 
             if (Children is null)
             {

@@ -426,7 +426,7 @@ namespace System.Text.RegularExpressions
 
                 if (_pos == _pattern.Length || !(isQuantifier = IsTrueQuantifier()))
                 {
-                    _concatenation!.AddChild(_unit!);
+                    _concatenation!.AddChildMinimal(_unit!);
                     _unit = null;
                     goto ContinueOuterScan;
                 }
@@ -467,7 +467,7 @@ namespace System.Text.RegularExpressions
 
                             if (startpos == _pos || _pos == _pattern.Length || _pattern[_pos++] != '}')
                             {
-                                _concatenation!.AddChild(_unit!);
+                                _concatenation!.AddChildMinimal(_unit!);
                                 _unit = null;
                                 _pos = startpos - 1;
                                 goto ContinueOuterScan;
@@ -494,7 +494,7 @@ namespace System.Text.RegularExpressions
                         throw MakeException(RegexParseError.ReversedQuantifierRange, SR.ReversedQuantifierRange);
                     }
 
-                    _concatenation!.AddChild(_unit!.MakeQuantifier(lazy, min, max));
+                    _concatenation!.AddChildMinimal(_unit!.MakeQuantifier(lazy, min, max));
                     _unit = null;
                 }
 
@@ -535,7 +535,7 @@ namespace System.Text.RegularExpressions
                 if (_pos < _pattern.Length)
                 {
                     _pos++;
-                    _concatenation.AddChild(ScanDollar());
+                    _concatenation.AddChildMinimal(ScanDollar());
                     _unit = null;
                 }
             }
@@ -2044,17 +2044,17 @@ namespace System.Text.RegularExpressions
                     return;
 
                 case 1:
-                    _concatenation!.AddChild(RegexNode.CreateOneWithCaseConversion(_pattern[pos], isReplacement ? _options & ~RegexOptions.IgnoreCase : _options, _culture, ref _caseBehavior));
+                    _concatenation!.AddChildMinimal(RegexNode.CreateOneWithCaseConversion(_pattern[pos], isReplacement ? _options & ~RegexOptions.IgnoreCase : _options, _culture, ref _caseBehavior));
                     break;
 
                 case > 1 when (_options & RegexOptions.IgnoreCase) == 0 || isReplacement || !RegexCharClass.ParticipatesInCaseConversion(_pattern.AsSpan(pos, cch)):
-                    _concatenation!.AddChild(new RegexNode(RegexNodeKind.Multi, _options & ~RegexOptions.IgnoreCase, _pattern.Substring(pos, cch)));
+                    _concatenation!.AddChildMinimal(new RegexNode(RegexNodeKind.Multi, _options & ~RegexOptions.IgnoreCase, _pattern.Substring(pos, cch)));
                     break;
 
                 default:
                     foreach (char c in _pattern.AsSpan(pos, cch))
                     {
-                        _concatenation!.AddChild(RegexNode.CreateOneWithCaseConversion(c, _options, _culture, ref _caseBehavior));
+                        _concatenation!.AddChildMinimal(RegexNode.CreateOneWithCaseConversion(c, _options, _culture, ref _caseBehavior));
                     }
                     break;
             }
@@ -2085,7 +2085,7 @@ namespace System.Text.RegularExpressions
                     throw MakeException(RegexParseError.AlternationHasMalformedCondition, SR.AlternationHasMalformedCondition);
                 }
 
-                _group.AddChild(_unit);
+                _group.AddChildMinimal(_unit);
                 _unit = null;
             }
         }
@@ -2105,11 +2105,11 @@ namespace System.Text.RegularExpressions
 
             if (_group!.Kind is RegexNodeKind.ExpressionConditional or RegexNodeKind.BackreferenceConditional)
             {
-                _group.AddChild(_concatenation!.ReverseConcatenationIfRightToLeft());
+                _group.AddChildMinimal(_concatenation!.ReverseConcatenationIfRightToLeft());
             }
             else
             {
-                _alternation!.AddChild(_concatenation!.ReverseConcatenationIfRightToLeft());
+                _alternation!.AddChildMinimal(_concatenation!.ReverseConcatenationIfRightToLeft());
             }
 
             _concatenation = new RegexNode(RegexNodeKind.Concatenate, _options);
@@ -2120,7 +2120,7 @@ namespace System.Text.RegularExpressions
         {
             if (_group!.Kind is RegexNodeKind.ExpressionConditional or RegexNodeKind.BackreferenceConditional)
             {
-                _group.AddChild(_concatenation!.ReverseConcatenationIfRightToLeft());
+                _group.AddChildMinimal(_concatenation!.ReverseConcatenationIfRightToLeft());
 
                 if (_group.Kind == RegexNodeKind.BackreferenceConditional && _group.ChildCount() > 2 || _group.ChildCount() > 3)
                 {
@@ -2129,8 +2129,8 @@ namespace System.Text.RegularExpressions
             }
             else
             {
-                _alternation!.AddChild(_concatenation!.ReverseConcatenationIfRightToLeft());
-                _group.AddChild(_alternation);
+                _alternation!.AddChildMinimal(_concatenation!.ReverseConcatenationIfRightToLeft());
+                _group.AddChildMinimal(_alternation);
             }
 
             _unit = _group;
