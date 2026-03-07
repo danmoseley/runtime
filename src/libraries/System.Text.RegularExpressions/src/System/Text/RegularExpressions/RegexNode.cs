@@ -442,6 +442,71 @@ namespace System.Text.RegularExpressions
             return rootNode;
         }
 
+#if DEBUG
+        /// <summary>
+        /// EXPERIMENTAL: Walks the tree bottom-up and re-calls Reduce() on each node.
+        /// Returns true if any node was replaced (tree changed).
+        /// </summary>
+        internal bool ReReduceTree()
+        {
+            bool changed = false;
+            ReReduceNode(this, ref changed);
+            return changed;
+
+            static void ReReduceNode(RegexNode node, ref bool changed)
+            {
+                // First, recurse into children
+                int childCount = node.ChildCount();
+                for (int i = 0; i < childCount; i++)
+                {
+                    ReReduceNode(node.Child(i), ref changed);
+                }
+
+                // Re-reduce each child in place
+                for (int i = 0; i < node.ChildCount(); i++)
+                {
+                    RegexNode child = node.Child(i);
+                    RegexNode reduced = child.Reduce();
+                    if (reduced != child)
+                    {
+                        reduced.Parent = node;
+                        if (node.Children is RegexNode)
+                        {
+                            node.Children = reduced;
+                        }
+                        else if (node.Children is List<RegexNode> list)
+                        {
+                            list[i] = reduced;
+                        }
+                        changed = true;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// EXPERIMENTAL: Re-runs FinalOptimize passes (FindAndMakeLoopsAtomic + EliminateEndingBacktracking).
+        /// Returns true if the tree changed.
+        /// </summary>
+        internal bool ReRunFinalOptimizePasses()
+        {
+            RegexNode rootNode = this;
+            Debug.Assert(rootNode.Kind == RegexNodeKind.Capture);
+            Debug.Assert(rootNode.ChildCount() == 1);
+
+            string before = rootNode.ToString();
+
+            if ((rootNode.Options & (RegexOptions.RightToLeft | RegexOptions.NonBacktracking)) == 0)
+            {
+                rootNode.FindAndMakeLoopsAtomic();
+                rootNode.EliminateEndingBacktracking();
+            }
+
+            string after = rootNode.ToString();
+            return before != after;
+        }
+#endif
+
         /// <summary>Converts nodes at the end of the node tree to be atomic.</summary>
         /// <remarks>
         /// The correctness of this optimization depends on nothing being able to backtrack into
