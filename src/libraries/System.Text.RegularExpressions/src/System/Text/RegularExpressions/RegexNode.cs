@@ -390,7 +390,15 @@ namespace System.Text.RegularExpressions
                 // to implementations that don't support backtracking.
                 rootNode.EliminateEndingBacktracking();
 
+                // Re-run reduction passes to clean up structures created by the optimizations above.
+                // FinalOptimize can create patterns like Atomic(Alternate(X, Empty)) that ReduceAtomic
+                // would simplify to Loop?(X), or Concatenate(X, Empty) that ReduceConcatenation would
+                // simplify to X. A single re-reduce pass catches all such cases.
+                rootNode.ReReduceTree();
+
                 // Optimization: unnecessary re-processing of starting loops.
+                // This runs after ReReduceTree so it operates on the final tree structure, since
+                // ReReduceTree may restructure alternations into concatenations with a leading loop.
                 // If an expression is guaranteed to begin with a single-character unbounded loop that isn't part of an alternation (in which case it
                 // wouldn't be guaranteed to be at the beginning) or a capture (in which case a back reference could be influenced by its length), then we
                 // can update the tree with a temporary node to indicate that the implementation should use that node's ending position in the input text
@@ -435,12 +443,6 @@ namespace System.Text.RegularExpressions
                 }
             }
 
-            // Re-run reduction passes to clean up structures created by the optimizations above.
-            // FinalOptimize can create patterns like Atomic(Alternate(X, Empty)) that ReduceAtomic
-            // would simplify to Loop?(X), or Concatenate(X, Empty) that ReduceConcatenation would
-            // simplify to X. A single re-reduce pass catches all such cases.
-            rootNode.ReReduceTree();
-
             // Done optimizing.  Return the final tree.
 #if DEBUG
             rootNode.ValidateFinalTreeInvariants();
@@ -450,43 +452,34 @@ namespace System.Text.RegularExpressions
 
         /// <summary>
         /// Walks the tree bottom-up and re-calls <see cref="Reduce"/> on each child node,
-        /// replacing any child that reduces to a simpler form.
+        /// replacing any child that reduces to a simpler form. This cleans up structures
+        /// created by the <see cref="FinalOptimize"/> passes, e.g. Concatenate(X, Empty)
+        /// or Atomic wrappers that became redundant.
         /// </summary>
-        /// <remarks>
-        /// This is used after <see cref="FinalOptimize"/> to clean up patterns that the
-        /// post-parse optimizations create — e.g. Concatenate(X, Empty) left behind by
-        /// EliminateEndingBacktracking, or Atomic wrappers that became redundant after
-        /// inner loops were promoted to atomic.
-        /// </remarks>
         private void ReReduceTree()
         {
-            ReReduceNode(this);
-
-            static void ReReduceNode(RegexNode node)
+            if (!StackHelper.TryEnsureSufficientExecutionStack())
             {
-                // First, recurse into children bottom-up
-                int childCount = node.ChildCount();
-                for (int i = 0; i < childCount; i++)
-                {
-                    ReReduceNode(node.Child(i));
-                }
+                return;
+            }
 
-                // Re-reduce each child in place
-                for (int i = 0; i < node.ChildCount(); i++)
+            int childCount = ChildCount();
+            for (int i = 0; i < childCount; i++)
+            {
+                Child(i).ReReduceTree();
+
+                RegexNode child = Child(i);
+                RegexNode reduced = child.Reduce();
+                if (reduced != child)
                 {
-                    RegexNode child = node.Child(i);
-                    RegexNode reduced = child.Reduce();
-                    if (reduced != child)
+                    reduced.Parent = this;
+                    if (Children is RegexNode)
                     {
-                        reduced.Parent = node;
-                        if (node.Children is RegexNode)
-                        {
-                            node.Children = reduced;
-                        }
-                        else if (node.Children is List<RegexNode> list)
-                        {
-                            list[i] = reduced;
-                        }
+                        Children = reduced;
+                    }
+                    else if (Children is List<RegexNode> list)
+                    {
+                        list[i] = reduced;
                     }
                 }
             }

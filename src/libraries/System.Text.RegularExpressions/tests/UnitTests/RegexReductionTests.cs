@@ -475,6 +475,10 @@ namespace System.Text.RegularExpressions.Tests
         [InlineData("(?:http|https)://foo", "http(?>s?)://foo")]
         [InlineData("(?:ab|abc)d", "ab(?>c?)d")]
         [InlineData("(?:abc|abcd|abce|abcfg)h", "abc(?:|[de]|fg)h")]
+        // ReReduceTree: post-FinalOptimize cleanup. Each case shows the equivalent tree without re-reduce.
+        [InlineData("a|ab", "a")]                                          // Without re-reduce: a(?:)  — prefix extraction leaves Concat(a, Empty); re-reduce strips Empty
+        [InlineData(@"\n|\n\r|\r\n", @"(?>\n|\r\n)")]                      // Without re-reduce: (?>\n(?:)|\r\n)  — shared prefix \n leaves Concat(\n, Empty) in branch; re-reduce collapses it
+        [InlineData(@"[ab]+c[ab]+|[ab]+", @"(?>(?>[ab]+)(?:c(?>[ab]+))?)")]  // Without re-reduce: (?>([ab]+c[ab]+|[ab]+))  — quantified set prefix [ab]+ not extracted until re-reduce
         public void PatternsReduceIdentically(string actual, string expected)
         {
             // NOTE: RegexNode.ToString is only compiled into debug builds, so DEBUG is currently set on the unit tests project.
