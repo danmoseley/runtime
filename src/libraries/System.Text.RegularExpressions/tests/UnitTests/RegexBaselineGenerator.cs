@@ -908,6 +908,106 @@ namespace System.Text.RegularExpressions.Tests
             }
         }
 
+        /// <summary>
+        /// Dumps before/after trees for ALL 231 changed patterns with compact diff summary.
+        /// Run with ReReduceTree DISABLED in production code to see the effect.
+        /// </summary>
+        [Fact]
+        public void DumpAllChangedPatterns()
+        {
+            // Disable ReReduceTree in production to see before/after.
+            // Since ReReduceTree is now in production FinalOptimize, the "before" already includes it.
+            // So we compare the tree as-is (WITH ReReduceTree) vs the tree from a second parse
+            // where we ALSO call ReReduceTreeForTests (double-reduce — should be same).
+            // To get the actual before/after, we need ReReduceTree DISABLED in production.
+            // This test is designed to run with it DISABLED.
+
+            var results = new List<(string pattern, int opts, string before, string after, string diffSummary)>();
+
+            foreach (object[] data in RegexReductionBaselineTests.RealWorldPatterns())
+            {
+                string pattern = (string)data[0];
+                int opts = (int)data[1];
+
+                try
+                {
+                    var tree1 = RegexParser.Parse(pattern, (RegexOptions)opts, CultureInfo.InvariantCulture);
+                    string before = tree1.Root.ToString();
+
+                    var tree2 = RegexParser.Parse(pattern, (RegexOptions)opts, CultureInfo.InvariantCulture);
+                    tree2.Root.ReReduceTreeForTests();
+                    string after = tree2.Root.ToString();
+
+                    if (before == after) continue;
+
+                    // Compute a compact diff summary
+                    var diffs = new List<string>();
+                    int bEmpty = CountOccurrences(before, "Empty");
+                    int aEmpty = CountOccurrences(after, "Empty");
+                    int bAtomic = CountOccurrences(before, "\n") > 0 ? before.Split('\n').Count(l => l.TrimStart().StartsWith("Atomic")) : 0;
+                    int aAtomic = after.Split('\n').Count(l => l.TrimStart().StartsWith("Atomic"));
+                    int bAlt = CountOccurrences(before, "Alternate");
+                    int aAlt = CountOccurrences(after, "Alternate");
+                    int bConcat = CountOccurrences(before, "Concatenate");
+                    int aConcat = CountOccurrences(after, "Concatenate");
+                    bool newLoop = CountOccurrences(after, "Loop") > CountOccurrences(before, "Loop");
+                    int bNodes = before.Split('\n').Length;
+                    int aNodes = after.Split('\n').Length;
+
+                    if (bEmpty > aEmpty) diffs.Add($"Empty-{bEmpty - aEmpty}");
+                    if (bAtomic > aAtomic) diffs.Add($"Atomic-{bAtomic - aAtomic}");
+                    if (aAtomic > bAtomic) diffs.Add($"Atomic+{aAtomic - bAtomic}");
+                    if (bAlt > aAlt) diffs.Add($"Alt-{bAlt - aAlt}");
+                    if (aAlt > bAlt) diffs.Add($"Alt+{aAlt - bAlt}");
+                    if (bConcat > aConcat) diffs.Add($"Concat-{bConcat - aConcat}");
+                    if (aConcat > bConcat) diffs.Add($"Concat+{aConcat - bConcat}");
+                    if (newLoop) diffs.Add("Loop+");
+
+                    string summary = string.Join(", ", diffs);
+                    results.Add((pattern, opts, before, after, summary));
+                }
+                catch { }
+            }
+
+            // Group by diff summary to find distinct categories
+            var groups = results.GroupBy(r => r.diffSummary).OrderByDescending(g => g.Count()).ToList();
+
+            var lines = new List<string>();
+            lines.Add($"=== {results.Count} CHANGED PATTERNS IN {groups.Count} DISTINCT DIFF SIGNATURES ===\n");
+
+            foreach (var group in groups)
+            {
+                lines.Add($"--- [{group.Count()} patterns] {group.Key} ---");
+                // Show first 3 examples with full trees
+                foreach (var (pattern, opts, before, after, _) in group.Take(3))
+                {
+                    string shortPat = pattern.Length > 80 ? pattern.Substring(0, 77) + "..." : pattern;
+                    lines.Add($"  Pattern: {shortPat} (opts={opts})");
+                    lines.Add($"  BEFORE:\n{string.Join("\n", before.Split('\n').Select(l => "    " + l))}");
+                    lines.Add($"  AFTER:\n{string.Join("\n", after.Split('\n').Select(l => "    " + l))}");
+                    lines.Add("");
+                }
+                // Show remaining as one-liners
+                foreach (var (pattern, opts, _, _, _) in group.Skip(3))
+                {
+                    string shortPat = pattern.Length > 80 ? pattern.Substring(0, 77) + "..." : pattern;
+                    lines.Add($"  + {shortPat} (opts={opts})");
+                }
+                lines.Add("");
+            }
+
+            string outputPath = Path.Combine(Path.GetTempPath(), "regex_all_changes.txt");
+            File.WriteAllLines(outputPath, lines);
+
+            // Also write a summary to console
+            _output.WriteLine($"{results.Count} changed patterns in {groups.Count} distinct signatures:");
+            foreach (var g in groups)
+            {
+                _output.WriteLine($"  [{g.Count()}] {g.Key}");
+                _output.WriteLine($"       e.g. {(g.First().pattern.Length > 60 ? g.First().pattern.Substring(0, 57) + "..." : g.First().pattern)} (opts={g.First().opts})");
+            }
+        }
+
         private static int CountOccurrences(string text, string search)
         {
             int count = 0, index = 0;
@@ -917,6 +1017,124 @@ namespace System.Text.RegularExpressions.Tests
                 index += search.Length;
             }
             return count;
+        }
+
+        /// <summary>
+        /// Verifies candidate InlineData pairs for PatternsReduceIdentically.
+        /// Run with ReReduceTree ENABLED to confirm trees match.
+        /// </summary>
+        [Fact]
+        public void VerifyTestPairs()
+        {
+            var pairs = new (string actual, string expected)[]
+            {
+                // Mechanism 3: Redundant Atomic removal
+                ("ab|a|ac", "ab?"),
+                ("ab|a|ac|d", "(?>ab?|d)"),
+
+                // Mechanism 4: Set-to-One simplification after branch dedup
+                ("a?b|a??b", "(?>a?(?>b))"),
+                ("[ab]?c|[ab]??c", "(?>[ab]?(?>c))"),
+            };
+
+            foreach (var (actual, expected) in pairs)
+            {
+                string actualStr = RegexParser.Parse(actual, RegexOptions.None, CultureInfo.InvariantCulture).Root.ToString();
+                string expectedStr = RegexParser.Parse(expected, RegexOptions.None, CultureInfo.InvariantCulture).Root.ToString();
+
+                bool match = actualStr == expectedStr;
+                _output.WriteLine($"[{(match ? "PASS" : "FAIL")}] \"{actual}\" vs \"{expected}\"");
+                if (!match)
+                {
+                    _output.WriteLine($"  ACTUAL TREE:\n{string.Join("\n", actualStr.Split('\n').Select(l => "    " + l))}");
+                    _output.WriteLine($"  EXPECTED TREE:\n{string.Join("\n", expectedStr.Split('\n').Select(l => "    " + l))}");
+                }
+                _output.WriteLine("");
+            }
+        }
+
+        /// <summary>
+        /// Empirically finds simple test patterns for each distinct ReReduceTree improvement mechanism.
+        /// Run with ReReduceTree DISABLED in production code.
+        /// </summary>
+        [Fact]
+        public void FindTestCandidates()
+        {
+            var candidates = new (string pattern, RegexOptions opts, string mechanism)[]
+            {
+                // Mechanism 3: Redundant Atomic removal — Atomic(Xloopatomic) → Xloopatomic
+                ("(?:abc|ab|abd|e)", RegexOptions.None, "atomic-removal"),
+                ("(?:ab|a|ac|d)", RegexOptions.None, "atomic-removal"),
+                ("(?:ab|a|ac)", RegexOptions.None, "atomic-removal"),
+                ("(?:ba|b|ca)", RegexOptions.None, "atomic-removal"),
+                ("ab|a|ac|d", RegexOptions.None, "atomic-removal"),
+                ("ab|a|ac", RegexOptions.None, "atomic-removal"),
+
+                // Mechanism 4: Identical branch dedup after atomic promotion
+                ("a?b|a??b", RegexOptions.None, "branch-dedup"),
+                ("a*b|a*?b", RegexOptions.None, "branch-dedup"),
+                ("a+b|a+?b", RegexOptions.None, "branch-dedup"),
+                ("[ab]?c|[ab]??c", RegexOptions.None, "branch-dedup"),
+                ("[ab]+c|[ab]+?c", RegexOptions.None, "branch-dedup"),
+                (".?b|.??b", RegexOptions.Singleline, "branch-dedup"),
+                ("a?bc|a??bc", RegexOptions.None, "branch-dedup"),
+
+                // Mechanism 5: Loop coalescing — Loop(Set) → Setloop after FinalOptimize
+                // This arises when FinalOptimize removes a Capture or Concat leaving Loop(Set)
+                ("(?:[-=]){2,}", RegexOptions.None, "loop-coalesce"),
+                ("(?:[ab]){3,}", RegexOptions.None, "loop-coalesce"),
+                ("(?:a){2,}", RegexOptions.None, "loop-coalesce"),
+                ("(?:[a-z])+", RegexOptions.None, "loop-coalesce"),
+
+                // Mechanism 6: Further prefix extraction after simplification
+                ("abc|abd|ab", RegexOptions.None, "further-prefix"),
+                ("ab|ac|a", RegexOptions.None, "further-prefix"),
+
+                // More complex combos
+                ("(?:ab|a)c", RegexOptions.None, "combo-empty-prefix"),
+                ("(?:abc|ab|a)d", RegexOptions.None, "combo-empty-prefix"),
+                ("a(?:bc|b)", RegexOptions.None, "combo-empty-prefix"),
+                ("a(?:bc|b|bd)", RegexOptions.None, "combo-empty-prefix"),
+            };
+
+            var lines = new List<string>();
+            int changedCount = 0;
+
+            foreach (var (pattern, opts, mechanism) in candidates)
+            {
+                try
+                {
+                    var tree1 = RegexParser.Parse(pattern, opts, CultureInfo.InvariantCulture);
+                    string before = tree1.Root.ToString();
+
+                    var tree2 = RegexParser.Parse(pattern, opts, CultureInfo.InvariantCulture);
+                    tree2.Root.ReReduceTreeForTests();
+                    string after = tree2.Root.ToString();
+
+                    bool changed = before != after;
+                    if (changed) changedCount++;
+
+                    string status = changed ? "CHANGED" : "same";
+                    lines.Add($"[{status}] ({mechanism}) {pattern} (opts={(int)opts})");
+                    if (changed)
+                    {
+                        lines.Add($"  BEFORE:\n{string.Join("\n", before.Split('\n').Select(l => "    " + l))}");
+                        lines.Add($"  AFTER:\n{string.Join("\n", after.Split('\n').Select(l => "    " + l))}");
+                    }
+                    lines.Add("");
+                }
+                catch (Exception ex)
+                {
+                    lines.Add($"[ERROR] ({mechanism}) {pattern}: {ex.Message}");
+                    lines.Add("");
+                }
+            }
+
+            lines.Insert(0, $"=== {changedCount} of {candidates.Length} candidates changed ===\n");
+
+            string outputPath = Path.Combine(Path.GetTempPath(), "regex_test_candidates.txt");
+            File.WriteAllLines(outputPath, lines);
+            foreach (string line in lines) _output.WriteLine(line);
         }
 
         /// <summary>
