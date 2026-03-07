@@ -305,7 +305,117 @@ namespace System.Text.RegularExpressions.Tests
         }
 
         /// <summary>
-        /// EXPERIMENT 2b: Clean pass ordering comparison.
+        /// EXPERIMENT 3: Minimal fix analysis.
+        /// Tests what the minimal change to the optimizer would look like:
+        ///   (a) Just re-reduce after FinalOptimize (no re-FinalOptimize) — captures Concat+Empty, Atomic unwrap
+        ///   (b) Just re-FinalOptimize after re-reduce (no second re-reduce) — captures atomic promotions
+        ///   (c) Full re-reduce + re-FinalOptimize (same as Experiment 1 round 1)
+        ///
+        /// This tells us what the cheapest effective change would be.
+        /// </summary>
+        [Fact]
+        public void MinimalFixAnalysisExperiment()
+        {
+            int totalPatterns = 0, totalParseErrors = 0;
+            int changedReduceOnly = 0, changedFinalOnly = 0, changedBoth = 0;
+            var findingsReduceOnly = new List<string>();
+            var findingsFinalOnly = new List<string>();
+            var findingsBothButNotEither = new List<string>(); // Changed by both but not by either alone
+
+            foreach (object[] data in RegexReductionBaselineTests.RealWorldPatterns())
+            {
+                string pattern = (string)data[0];
+                int options = (int)data[1];
+                totalPatterns++;
+
+                try
+                {
+                    // Baseline: standard pipeline
+                    RegexTree baseTree = RegexParser.Parse(pattern, (RegexOptions)options, CultureInfo.InvariantCulture);
+                    string baseline = FlattenTree(baseTree.Root.ToString());
+
+                    // Variant A: standard pipeline + re-reduce only
+                    RegexTree treeA = RegexParser.Parse(pattern, (RegexOptions)options, CultureInfo.InvariantCulture);
+                    treeA.Root.ReReduceTree();
+                    string afterReduceOnly = FlattenTree(treeA.Root.ToString());
+
+                    // Variant B: standard pipeline + re-FinalOptimize only (no re-reduce)
+                    RegexTree treeB = RegexParser.Parse(pattern, (RegexOptions)options, CultureInfo.InvariantCulture);
+                    treeB.Root.ReRunFinalOptimizePasses();
+                    string afterFinalOnly = FlattenTree(treeB.Root.ToString());
+
+                    // Variant C: standard pipeline + re-reduce + re-FinalOptimize
+                    RegexTree treeC = RegexParser.Parse(pattern, (RegexOptions)options, CultureInfo.InvariantCulture);
+                    treeC.Root.ReReduceTree();
+                    treeC.Root.ReRunFinalOptimizePasses();
+                    string afterBoth = FlattenTree(treeC.Root.ToString());
+
+                    bool reduceChanged = afterReduceOnly != baseline;
+                    bool finalChanged = afterFinalOnly != baseline;
+                    bool bothChanged = afterBoth != baseline;
+
+                    if (reduceChanged) changedReduceOnly++;
+                    if (finalChanged) changedFinalOnly++;
+                    if (bothChanged) changedBoth++;
+
+                    if (reduceChanged)
+                    {
+                        findingsReduceOnly.Add($"REDUCE_ONLY|{Escape(pattern)}|{options}|BEFORE: {baseline}|AFTER: {afterReduceOnly}");
+                    }
+                    if (finalChanged)
+                    {
+                        findingsFinalOnly.Add($"FINAL_ONLY|{Escape(pattern)}|{options}|BEFORE: {baseline}|AFTER: {afterFinalOnly}");
+                    }
+                    if (bothChanged && !reduceChanged && !finalChanged)
+                    {
+                        findingsBothButNotEither.Add($"SYNERGY|{Escape(pattern)}|{options}|BEFORE: {baseline}|AFTER_BOTH: {afterBoth}|AFTER_REDUCE: {afterReduceOnly}|AFTER_FINAL: {afterFinalOnly}");
+                    }
+                }
+                catch (RegexParseException)
+                {
+                    totalParseErrors++;
+                }
+            }
+
+            string outputPath = Path.Combine(Path.GetTempPath(), "regex_minimal_fix_results.txt");
+            var lines = new List<string>
+            {
+                "=== MINIMAL FIX ANALYSIS ===",
+                $"Total patterns: {totalPatterns}",
+                $"Parse errors: {totalParseErrors}",
+                $"",
+                $"Changed by re-reduce only: {changedReduceOnly}",
+                $"Changed by re-FinalOptimize only: {changedFinalOnly}",
+                $"Changed by both (re-reduce + re-FinalOptimize): {changedBoth}",
+                $"Changed by BOTH but NOT by either alone (synergy): {findingsBothButNotEither.Count}",
+                $"",
+                $"=== INTERPRETATION ===",
+                $"If re-reduce captures most of the {changedBoth} improvements,",
+                $"then the minimal fix is just: add root.ReReduceTree() after FinalOptimize.",
+                $"If many patterns need the full re-reduce+re-FinalOptimize, the fix needs",
+                $"to include both passes.",
+                $"",
+                $"=== REDUCE-ONLY FINDINGS ({findingsReduceOnly.Count}) ===",
+                ""
+            };
+            lines.AddRange(findingsReduceOnly);
+            lines.Add($"");
+            lines.Add($"=== FINAL-ONLY FINDINGS ({findingsFinalOnly.Count}) ===");
+            lines.Add($"");
+            lines.AddRange(findingsFinalOnly);
+            lines.Add($"");
+            lines.Add($"=== SYNERGY FINDINGS ({findingsBothButNotEither.Count}) ===");
+            lines.Add($"");
+            lines.AddRange(findingsBothButNotEither);
+            File.WriteAllLines(outputPath, lines);
+
+            _output.WriteLine($"Total patterns: {totalPatterns}");
+            _output.WriteLine($"Changed by re-reduce only: {changedReduceOnly}");
+            _output.WriteLine($"Changed by re-FinalOptimize only: {changedFinalOnly}");
+            _output.WriteLine($"Changed by both: {changedBoth}");
+            _output.WriteLine($"Synergy (both but not either): {findingsBothButNotEither.Count}");
+            _output.WriteLine($"Results: {outputPath}");
+        }
         /// Parses each pattern into a Reduce-only tree (no FinalOptimize), then
         /// applies FinalOptimize passes in each possible ordering and compares results.
         ///
@@ -409,6 +519,218 @@ namespace System.Text.RegularExpressions.Tests
                     _output.WriteLine($"... and {findings.Count - 20} more");
                 }
             }
+        }
+
+        /// <summary>
+        /// EXPERIMENT 4: Match-time performance comparison for affected patterns.
+        /// For each pattern that changes with re-reduce, generate random matching/non-matching
+        /// input and measure match time with the standard tree vs the improved tree.
+        ///
+        /// Since we can't easily construct a regex from a modified tree, we instead:
+        ///   1. Identify patterns whose trees change
+        ///   2. Classify the change type (Tier A structural improvement)
+        ///   3. For the most interesting patterns, measure construction time overhead
+        ///      of the re-reduce pass
+        ///
+        /// The construction cost is the ONLY cost — the improved tree is strictly better
+        /// or equivalent at match time (Tier A improvements).
+        /// </summary>
+        [Fact]
+        public void ConstructionCostExperiment()
+        {
+            const int iterations = 1;
+            var results = new List<string>();
+            var sw = new System.Diagnostics.Stopwatch();
+
+            // Use only the first 2000 patterns to stay within test timeout
+            var patterns = new List<(string pattern, int options)>();
+            foreach (object[] data in RegexReductionBaselineTests.RealWorldPatterns())
+            {
+                patterns.Add(((string)data[0], (int)data[1]));
+                if (patterns.Count >= 2000) break;
+            }
+
+            // Measure: standard parse only
+            sw.Restart();
+            for (int iter = 0; iter < iterations; iter++)
+            {
+                foreach (var (pattern, options) in patterns)
+                {
+                    try
+                    {
+                        RegexParser.Parse(pattern, (RegexOptions)options, CultureInfo.InvariantCulture);
+                    }
+                    catch { }
+                }
+            }
+            sw.Stop();
+            long standardMs = sw.ElapsedMilliseconds;
+            double standardPerPattern = (double)standardMs / (iterations * patterns.Count);
+
+            // Measure: standard parse + re-reduce
+            sw.Restart();
+            for (int iter = 0; iter < iterations; iter++)
+            {
+                foreach (var (pattern, options) in patterns)
+                {
+                    try
+                    {
+                        RegexTree tree = RegexParser.Parse(pattern, (RegexOptions)options, CultureInfo.InvariantCulture);
+                        tree.Root.ReReduceTree();
+                    }
+                    catch { }
+                }
+            }
+            sw.Stop();
+            long withReReduceMs = sw.ElapsedMilliseconds;
+            double withReReducePerPattern = (double)withReReduceMs / (iterations * patterns.Count);
+
+            double overheadMs = withReReducePerPattern - standardPerPattern;
+            double overheadPercent = standardPerPattern > 0 ? (overheadMs / standardPerPattern) * 100 : 0;
+
+            results.Add("=== CONSTRUCTION COST EXPERIMENT ===");
+            results.Add($"Patterns: {patterns.Count}");
+            results.Add($"Iterations: {iterations}");
+            results.Add($"");
+            results.Add($"Standard parse (avg per pattern): {standardPerPattern:F4} ms");
+            results.Add($"Parse + ReReduce (avg per pattern): {withReReducePerPattern:F4} ms");
+            results.Add($"ReReduce overhead (per pattern): {overheadMs:F4} ms ({overheadPercent:F1}%)");
+            results.Add($"");
+            results.Add($"Total standard: {standardMs} ms for {iterations} iterations of {patterns.Count} patterns");
+            results.Add($"Total with ReReduce: {withReReduceMs} ms for {iterations} iterations of {patterns.Count} patterns");
+            results.Add($"");
+            results.Add($"NOTE: This is DEBUG build with ToString() in assertions.");
+            results.Add($"Release build overhead would be significantly less.");
+            results.Add($"For source generator, this cost is paid at compile time (free at runtime).");
+
+            string outputPath = Path.Combine(Path.GetTempPath(), "regex_construction_cost.txt");
+            File.WriteAllLines(outputPath, results);
+
+            foreach (string line in results)
+            {
+                _output.WriteLine(line);
+            }
+        }
+
+        /// <summary>
+        /// EXPERIMENT 5: Detailed change categorization summary.
+        /// For each of the 221 affected patterns, classifies the change type
+        /// and outputs a structured summary.
+        /// </summary>
+        [Fact]
+        public void DetailedChangeCategorization()
+        {
+            var categories = new Dictionary<string, List<string>>
+            {
+                ["prefix_extraction"] = new(), // ReduceAlternation extracts common prefix in atomic context
+                ["concat_empty_removal"] = new(), // Concatenate(X, Empty) → X
+                ["atomic_unwrap"] = new(), // Atomic(Xloopatomic) → Xloopatomic
+                ["loop_coalesce"] = new(), // Adjacent loops merged
+                ["atomic_promotion"] = new(), // Non-atomic → atomic
+                ["alternate_to_loop"] = new(), // Alternate(X, Empty) in Atomic → Loop?(X)
+                ["other"] = new(),
+            };
+
+            foreach (object[] data in RegexReductionBaselineTests.RealWorldPatterns())
+            {
+                string pattern = (string)data[0];
+                int options = (int)data[1];
+
+                try
+                {
+                    RegexTree baseTree = RegexParser.Parse(pattern, (RegexOptions)options, CultureInfo.InvariantCulture);
+                    string baseline = baseTree.Root.ToString();
+
+                    RegexTree modTree = RegexParser.Parse(pattern, (RegexOptions)options, CultureInfo.InvariantCulture);
+                    modTree.Root.ReReduceTree();
+                    string modified = modTree.Root.ToString();
+
+                    if (baseline == modified) continue;
+
+                    // Count node types
+                    int baseEmpty = CountOccurrences(baseline, "Empty");
+                    int modEmpty = CountOccurrences(modified, "Empty");
+                    int baseAtomic = CountOccurrences(baseline, "Atomic\n") + CountOccurrences(baseline, "Atomic ");
+                    int modAtomic = CountOccurrences(modified, "Atomic\n") + CountOccurrences(modified, "Atomic ");
+                    int baseConcatenate = CountOccurrences(baseline, "Concatenate");
+                    int modConcatenate = CountOccurrences(modified, "Concatenate");
+                    int baseAlternate = CountOccurrences(baseline, "Alternate");
+                    int modAlternate = CountOccurrences(modified, "Alternate");
+                    bool hasNewLoop = modified.Contains("Loop") && !baseline.Contains("Loop") ||
+                                     CountOccurrences(modified, "Loop") > CountOccurrences(baseline, "Loop");
+                    int baseNodeCount = baseline.Split('\n').Length;
+                    int modNodeCount = modified.Split('\n').Length;
+
+                    string shortPattern = pattern.Length > 60 ? pattern.Substring(0, 60) + "..." : pattern;
+                    string entry = $"{shortPattern} (opts={options}, nodes: {baseNodeCount}→{modNodeCount})";
+
+                    bool categorized = false;
+
+                    if (baseEmpty > modEmpty && baseConcatenate > modConcatenate)
+                    {
+                        categories["concat_empty_removal"].Add(entry);
+                        categorized = true;
+                    }
+                    if (baseAtomic > modAtomic)
+                    {
+                        categories["atomic_unwrap"].Add(entry);
+                        categorized = true;
+                    }
+                    if (baseAlternate > modAlternate && hasNewLoop)
+                    {
+                        categories["alternate_to_loop"].Add(entry);
+                        categorized = true;
+                    }
+                    if (baseAlternate > modAlternate && !hasNewLoop && baseConcatenate <= modConcatenate)
+                    {
+                        categories["prefix_extraction"].Add(entry);
+                        categorized = true;
+                    }
+
+                    if (!categorized)
+                    {
+                        categories["other"].Add(entry);
+                    }
+                }
+                catch { }
+            }
+
+            var lines = new List<string> { "=== DETAILED CHANGE CATEGORIZATION ===" };
+            int total = 0;
+            foreach (var (cat, patterns) in categories)
+            {
+                lines.Add($"");
+                lines.Add($"--- {cat}: {patterns.Count} patterns ---");
+                total += patterns.Count;
+                foreach (string p in patterns.Take(20))
+                {
+                    lines.Add($"  {p}");
+                }
+                if (patterns.Count > 20)
+                {
+                    lines.Add($"  ... and {patterns.Count - 20} more");
+                }
+            }
+            lines.Insert(1, $"Total categorized: {total}");
+
+            string outputPath = Path.Combine(Path.GetTempPath(), "regex_change_categories.txt");
+            File.WriteAllLines(outputPath, lines);
+
+            foreach (string line in lines)
+            {
+                _output.WriteLine(line);
+            }
+        }
+
+        private static int CountOccurrences(string text, string search)
+        {
+            int count = 0, index = 0;
+            while ((index = text.IndexOf(search, index, StringComparison.Ordinal)) >= 0)
+            {
+                count++;
+                index += search.Length;
+            }
+            return count;
         }
     }
 }
