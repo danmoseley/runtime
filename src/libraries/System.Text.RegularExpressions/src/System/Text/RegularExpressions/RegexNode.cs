@@ -435,6 +435,12 @@ namespace System.Text.RegularExpressions
                 }
             }
 
+            // Re-run reduction passes to clean up structures created by the optimizations above.
+            // FinalOptimize can create patterns like Atomic(Alternate(X, Empty)) that ReduceAtomic
+            // would simplify to Loop?(X), or Concatenate(X, Empty) that ReduceConcatenation would
+            // simplify to X. A single re-reduce pass catches all such cases.
+            rootNode.ReReduceTree();
+
             // Done optimizing.  Return the final tree.
 #if DEBUG
             rootNode.ValidateFinalTreeInvariants();
@@ -442,24 +448,27 @@ namespace System.Text.RegularExpressions
             return rootNode;
         }
 
-#if DEBUG
         /// <summary>
-        /// EXPERIMENTAL: Walks the tree bottom-up and re-calls Reduce() on each node.
-        /// Returns true if any node was replaced (tree changed).
+        /// Walks the tree bottom-up and re-calls <see cref="Reduce"/> on each child node,
+        /// replacing any child that reduces to a simpler form.
         /// </summary>
-        internal bool ReReduceTree()
+        /// <remarks>
+        /// This is used after <see cref="FinalOptimize"/> to clean up patterns that the
+        /// post-parse optimizations create — e.g. Concatenate(X, Empty) left behind by
+        /// EliminateEndingBacktracking, or Atomic wrappers that became redundant after
+        /// inner loops were promoted to atomic.
+        /// </remarks>
+        private void ReReduceTree()
         {
-            bool changed = false;
-            ReReduceNode(this, ref changed);
-            return changed;
+            ReReduceNode(this);
 
-            static void ReReduceNode(RegexNode node, ref bool changed)
+            static void ReReduceNode(RegexNode node)
             {
-                // First, recurse into children
+                // First, recurse into children bottom-up
                 int childCount = node.ChildCount();
                 for (int i = 0; i < childCount; i++)
                 {
-                    ReReduceNode(node.Child(i), ref changed);
+                    ReReduceNode(node.Child(i));
                 }
 
                 // Re-reduce each child in place
@@ -478,11 +487,14 @@ namespace System.Text.RegularExpressions
                         {
                             list[i] = reduced;
                         }
-                        changed = true;
                     }
                 }
             }
         }
+
+#if DEBUG
+        /// <summary>EXPERIMENTAL: internal wrapper for test access to ReReduceTree.</summary>
+        internal void ReReduceTreeForTests() => ReReduceTree();
 
         /// <summary>
         /// EXPERIMENTAL: Re-runs FinalOptimize passes (FindAndMakeLoopsAtomic + EliminateEndingBacktracking).

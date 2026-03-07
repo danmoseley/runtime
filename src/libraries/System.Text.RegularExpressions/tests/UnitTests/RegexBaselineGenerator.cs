@@ -70,7 +70,7 @@ namespace System.Text.RegularExpressions.Tests
                     for (round = 1; round <= 10; round++)
                     {
                         // Re-reduce all nodes
-                        bool reduceChanged = root.ReReduceTree();
+                        root.ReReduceTreeForTests();
 
                         // Re-run FinalOptimize passes
                         bool finalChanged = root.ReRunFinalOptimizePasses();
@@ -149,7 +149,8 @@ namespace System.Text.RegularExpressions.Tests
         }
 
         /// <summary>
-        /// Generates the flattened tree baseline for all real-world patterns.
+        /// Snapshots the current optimizer output for all patterns to a TSV file.
+        /// After making optimizer changes, run VerifyTreeBaseline to see what changed.
         /// </summary>
         [Fact]
         public void GenerateTreeBaseline()
@@ -177,6 +178,118 @@ namespace System.Text.RegularExpressions.Tests
             string outputPath = Path.Combine(Path.GetTempPath(), "regex_tree_baseline.tsv");
             File.WriteAllLines(outputPath, results);
             _output.WriteLine($"Wrote {success} trees ({failed} errors) to {outputPath}");
+        }
+
+        /// <summary>
+        /// Compares current optimizer output against a previously-generated TSV baseline.
+        /// Run GenerateTreeBaseline first (before changes), then make your changes, then run this.
+        /// Reports: which patterns changed, how many nodes before/after, and the full diff.
+        /// </summary>
+        [Fact]
+        public void VerifyTreeBaseline()
+        {
+            string baselinePath = Path.Combine(Path.GetTempPath(), "regex_tree_baseline.tsv");
+            Assert.True(File.Exists(baselinePath), $"Baseline not found at {baselinePath}. Run GenerateTreeBaseline first.");
+
+            // Load baseline from TSV
+            var baseline = new Dictionary<string, string>(); // key: escaped_pattern + \t + options -> tree
+            foreach (string line in File.ReadAllLines(baselinePath))
+            {
+                int lastTab = line.LastIndexOf('\t');
+                if (lastTab > 0)
+                {
+                    string key = line.Substring(0, lastTab);   // escaped_pattern \t options
+                    string tree = line.Substring(lastTab + 1);  // flattened tree
+                    baseline[key] = tree;
+                }
+            }
+
+            int total = 0, matched = 0, changed = 0, improved = 0, regressed = 0, noBaseline = 0;
+            var changes = new List<string>();
+
+            foreach (object[] data in RegexReductionBaselineTests.RealWorldPatterns())
+            {
+                string pattern = (string)data[0];
+                int options = (int)data[1];
+                total++;
+
+                string key = $"{Escape(pattern)}\t{options}";
+                string currentTree;
+                try
+                {
+                    currentTree = FlattenTree(RegexParser.Parse(pattern, (RegexOptions)options, CultureInfo.InvariantCulture).Root.ToString());
+                }
+                catch
+                {
+                    currentTree = "PARSE_ERROR";
+                }
+
+                if (!baseline.TryGetValue(key, out string expectedTree))
+                {
+                    noBaseline++;
+                    continue;
+                }
+
+                if (currentTree == expectedTree)
+                {
+                    matched++;
+                }
+                else
+                {
+                    changed++;
+                    int beforeNodes = expectedTree.Split('|').Length;
+                    int afterNodes = currentTree.Split('|').Length;
+                    string delta = afterNodes < beforeNodes ? $"FEWER NODES ({beforeNodes}→{afterNodes})" :
+                                   afterNodes > beforeNodes ? $"MORE NODES ({beforeNodes}→{afterNodes})" :
+                                   $"SAME COUNT ({beforeNodes})";
+
+                    // Simple heuristic: fewer nodes or more atomic = improvement
+                    int beforeAtomic = CountSubstring(expectedTree, "loopatomic") + CountSubstring(expectedTree, "Atomic");
+                    int afterAtomic = CountSubstring(currentTree, "loopatomic") + CountSubstring(currentTree, "Atomic");
+                    bool likelyBetter = afterNodes < beforeNodes || afterAtomic > beforeAtomic;
+                    if (likelyBetter) improved++; else regressed++;
+
+                    string shortPattern = pattern.Length > 60 ? pattern.Substring(0, 60) + "..." : pattern;
+                    changes.Add($"{(likelyBetter ? "IMPROVED" : "REVIEW ")} {delta} | {shortPattern} (opts={options})");
+                    changes.Add($"  BEFORE: {expectedTree}");
+                    changes.Add($"  AFTER:  {currentTree}");
+                    changes.Add("");
+                }
+            }
+
+            // Write report
+            string reportPath = Path.Combine(Path.GetTempPath(), "regex_baseline_diff.txt");
+            var report = new List<string>
+            {
+                "=== BASELINE COMPARISON REPORT ===",
+                $"Total patterns: {total}",
+                $"Matched baseline: {matched}",
+                $"Changed: {changed} (likely improved: {improved}, needs review: {regressed})",
+                $"No baseline (new patterns): {noBaseline}",
+                ""
+            };
+            report.AddRange(changes);
+            File.WriteAllLines(reportPath, report);
+
+            _output.WriteLine($"Total: {total}, Matched: {matched}, Changed: {changed}");
+            _output.WriteLine($"  Improved: {improved}, Needs review: {regressed}");
+            _output.WriteLine($"Report: {reportPath}");
+
+            foreach (string line in changes.Take(100))
+            {
+                _output.WriteLine(line);
+            }
+            if (changes.Count > 100)
+            {
+                _output.WriteLine($"... and {changes.Count - 100} more lines");
+            }
+        }
+
+        private static int CountSubstring(string text, string sub)
+        {
+            int count = 0, idx = 0;
+            while ((idx = text.IndexOf(sub, idx, StringComparison.Ordinal)) >= 0) { count++; idx += sub.Length; }
+            return count;
         }
 
         private static string Escape(string s) =>
@@ -238,7 +351,7 @@ namespace System.Text.RegularExpressions.Tests
                         if (i > 0)
                         {
                             // For non-default orderings: re-reduce the tree, then apply the alternate order
-                            root.ReReduceTree();
+                            root.ReReduceTreeForTests();
                             root.RunFinalOptimizePassesInOrder(orderings[i]);
                         }
 
@@ -336,7 +449,7 @@ namespace System.Text.RegularExpressions.Tests
 
                     // Variant A: standard pipeline + re-reduce only
                     RegexTree treeA = RegexParser.Parse(pattern, (RegexOptions)options, CultureInfo.InvariantCulture);
-                    treeA.Root.ReReduceTree();
+                    treeA.Root.ReReduceTreeForTests();
                     string afterReduceOnly = FlattenTree(treeA.Root.ToString());
 
                     // Variant B: standard pipeline + re-FinalOptimize only (no re-reduce)
@@ -346,7 +459,7 @@ namespace System.Text.RegularExpressions.Tests
 
                     // Variant C: standard pipeline + re-reduce + re-FinalOptimize
                     RegexTree treeC = RegexParser.Parse(pattern, (RegexOptions)options, CultureInfo.InvariantCulture);
-                    treeC.Root.ReReduceTree();
+                    treeC.Root.ReReduceTreeForTests();
                     treeC.Root.ReRunFinalOptimizePasses();
                     string afterBoth = FlattenTree(treeC.Root.ToString());
 
@@ -391,7 +504,7 @@ namespace System.Text.RegularExpressions.Tests
                 $"",
                 $"=== INTERPRETATION ===",
                 $"If re-reduce captures most of the {changedBoth} improvements,",
-                $"then the minimal fix is just: add root.ReReduceTree() after FinalOptimize.",
+                $"then the minimal fix is just: add root.ReReduceTreeForTests() after FinalOptimize.",
                 $"If many patterns need the full re-reduce+re-FinalOptimize, the fix needs",
                 $"to include both passes.",
                 $"",
@@ -457,13 +570,13 @@ namespace System.Text.RegularExpressions.Tests
 
                     // Tree with re-reduce → B→A
                     RegexTree tree2Parse = RegexParser.Parse(pattern, (RegexOptions)options, CultureInfo.InvariantCulture);
-                    tree2Parse.Root.ReReduceTree();
+                    tree2Parse.Root.ReReduceTreeForTests();
                     tree2Parse.Root.RunFinalOptimizePassesInOrder(new[] { 1, 0 }); // B→A
                     string tree2 = FlattenTree(tree2Parse.Root.ToString());
 
                     // Tree with re-reduce → A→B (same order as default, but an extra round)
                     RegexTree tree3Parse = RegexParser.Parse(pattern, (RegexOptions)options, CultureInfo.InvariantCulture);
-                    tree3Parse.Root.ReReduceTree();
+                    tree3Parse.Root.ReReduceTreeForTests();
                     tree3Parse.Root.RunFinalOptimizePassesInOrder(new[] { 0, 1 }); // A→B
                     string tree3 = FlattenTree(tree3Parse.Root.ToString());
 
@@ -576,7 +689,7 @@ namespace System.Text.RegularExpressions.Tests
                     try
                     {
                         RegexTree tree = RegexParser.Parse(pattern, (RegexOptions)options, CultureInfo.InvariantCulture);
-                        tree.Root.ReReduceTree();
+                        tree.Root.ReReduceTreeForTests();
                     }
                     catch { }
                 }
@@ -642,7 +755,7 @@ namespace System.Text.RegularExpressions.Tests
                     string baseline = baseTree.Root.ToString();
 
                     RegexTree modTree = RegexParser.Parse(pattern, (RegexOptions)options, CultureInfo.InvariantCulture);
-                    modTree.Root.ReReduceTree();
+                    modTree.Root.ReReduceTreeForTests();
                     string modified = modTree.Root.ToString();
 
                     if (baseline == modified) continue;
@@ -793,7 +906,7 @@ namespace System.Text.RegularExpressions.Tests
                 {
                     RegexTree tree = RegexParser.Parse(pattern, options, CultureInfo.InvariantCulture);
                     string before = tree.Root.ToString();
-                    tree.Root.ReReduceTree();
+                    tree.Root.ReReduceTreeForTests();
                     string after = tree.Root.ToString();
 
                     if (before != after)
