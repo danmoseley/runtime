@@ -17,6 +17,8 @@
     <Compile Include="RegexFindOptimizationsTests.cs" />
     <Compile Include="RegexPrefixAnalyzerTests.cs" />
     <Compile Include="RegexReductionTests.cs" />
+    <Compile Include="RegexReductionBaselineTests.cs" />
+    <Compile Include="RegexBaselineGenerator.cs" />
     <Compile Include="RegexTreeAnalyzerTests.cs" />
     <Compile Include="SymbolicRegexTests.cs" />
 
