@@ -485,60 +485,6 @@ namespace System.Text.RegularExpressions
             }
         }
 
-#if DEBUG
-        /// <summary>EXPERIMENTAL: internal wrapper for test access to ReReduceTree.</summary>
-        internal void ReReduceTreeForTests() => ReReduceTree();
-
-        /// <summary>
-        /// EXPERIMENTAL: Re-runs FinalOptimize passes (FindAndMakeLoopsAtomic + EliminateEndingBacktracking).
-        /// Returns true if the tree changed.
-        /// </summary>
-        internal bool ReRunFinalOptimizePasses()
-        {
-            RegexNode rootNode = this;
-            Debug.Assert(rootNode.Kind == RegexNodeKind.Capture);
-            Debug.Assert(rootNode.ChildCount() == 1);
-
-            string before = rootNode.ToString();
-
-            if ((rootNode.Options & (RegexOptions.RightToLeft | RegexOptions.NonBacktracking)) == 0)
-            {
-                rootNode.FindAndMakeLoopsAtomic();
-                rootNode.EliminateEndingBacktracking();
-            }
-
-            string after = rootNode.ToString();
-            return before != after;
-        }
-
-        /// <summary>
-        /// EXPERIMENTAL: Runs the two main FinalOptimize passes in a specified order.
-        /// passOrder is an array of 0 and 1 where 0=FindAndMakeLoopsAtomic, 1=EliminateEndingBacktracking.
-        /// This is for the ordering sensitivity experiment.
-        /// </summary>
-        internal void RunFinalOptimizePassesInOrder(int[] passOrder)
-        {
-            RegexNode rootNode = this;
-            Debug.Assert(rootNode.Kind == RegexNodeKind.Capture);
-
-            if ((rootNode.Options & (RegexOptions.RightToLeft | RegexOptions.NonBacktracking)) == 0)
-            {
-                foreach (int pass in passOrder)
-                {
-                    switch (pass)
-                    {
-                        case 0:
-                            rootNode.FindAndMakeLoopsAtomic();
-                            break;
-                        case 1:
-                            rootNode.EliminateEndingBacktracking();
-                            break;
-                    }
-                }
-            }
-        }
-#endif
-
         /// <summary>Converts nodes at the end of the node tree to be atomic.</summary>
         /// <remarks>
         /// The correctness of this optimization depends on nothing being able to backtrack into
