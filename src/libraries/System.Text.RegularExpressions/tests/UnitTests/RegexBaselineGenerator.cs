@@ -732,5 +732,105 @@ namespace System.Text.RegularExpressions.Tests
             }
             return count;
         }
+
+        /// <summary>
+        /// Cross-reference: test all dotnet/performance benchmark patterns against ReReduceTree.
+        /// </summary>
+        [Fact]
+        public void BenchmarkPatternCrossReference()
+        {
+            var patterns = new (string pattern, RegexOptions options, string name)[]
+            {
+                // Perf_Regex_Common
+                (@"^([a-zA-Z0-9_\-\.]+)@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.)|(([a-zA-Z0-9\-]+\.)+))([a-zA-Z]{2,12}|[0-9]{1,3})(\]?)$", RegexOptions.None, "Email"),
+                (@"\b\d{1,2}\/\d{1,2}\/\d{2,4}\b", RegexOptions.None, "Date"),
+                (@"(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9])", RegexOptions.None, "IP"),
+                (@"[\w]+://[^/\s?#]+[^\s?#]+(?:\?[^\s#]*)?(?:#[^\s]*)?", RegexOptions.None, "URI"),
+                (@"tempus|magna|semper", RegexOptions.None, "MultiWord"),
+                (@"\w{10,}", RegexOptions.None, "LongWord"),
+                (@"\b\w{10,}\b", RegexOptions.None, "LongWordBoundary"),
+                (".*(ss)", RegexOptions.None, "Backtrack"),
+                (@"[^a]+\.[^z]+", RegexOptions.None, "SingleNodeBacktrack"),
+                (@"(^(.*)(\(([0-9]+),([0-9]+)\)): )(error|warning) ([A-Z]+[0-9]+) ?: (.*)", RegexOptions.None, "WarningPattern"),
+                (@"[\w\.+-]+@[\w\.-]+\.[\w\.-]+", RegexOptions.None, "Mariomka_Email"),
+                // Sherlock
+                (@"Sherlock|Street", RegexOptions.None, "Sherlock_Alt2"),
+                (@"Sherlock|Holmes|Watson|Irene|Adler|John|Baker", RegexOptions.None, "Sherlock_Alt7"),
+                (@"Sherlock|Holmes|Watson|Irene|Adler|John|Baker", RegexOptions.IgnoreCase, "Sherlock_Alt7_CI"),
+                (@"Sher[a-z]+|Hol[a-z]+", RegexOptions.None, "Sherlock_SetAlt"),
+                (@"Sher[a-z]+|Hol[a-z]+", RegexOptions.IgnoreCase, "Sherlock_SetAlt_CI"),
+                (@"Holmes.{0,25}Watson|Watson.{0,25}Holmes", RegexOptions.None, "Sherlock_Proximity"),
+                (@"[a-q][^u-z]{13}x", RegexOptions.None, "Sherlock_Complex"),
+                (@"[a-zA-Z]+ing", RegexOptions.None, "Sherlock_Ing"),
+                (@"\s[a-zA-Z]{0,12}ing\s", RegexOptions.None, "Sherlock_IngBounded"),
+                (@"(?m)^Sherlock Holmes|Sherlock Holmes$", RegexOptions.Multiline, "Sherlock_Anchored"),
+                (@"\w+\s+Holmes", RegexOptions.None, "Sherlock_WordHolmes"),
+                (@"\w+\s+Holmes\s+\w+", RegexOptions.None, "Sherlock_WordHolmesWord"),
+                (@"\b\w+n\b", RegexOptions.None, "Sherlock_WordN"),
+                (@"[a-zA-Z]+ing", RegexOptions.None, "Sherlock_Ing2"),
+                // Leipzig
+                ("Huck[a-zA-Z]+|Saw[a-zA-Z]+", RegexOptions.None, "Leipzig_HuckSaw"),
+                ("Tom|Sawyer|Huckleberry|Finn", RegexOptions.None, "Leipzig_TomSawyer"),
+                ("Tom|Sawyer|Huckleberry|Finn", RegexOptions.IgnoreCase, "Leipzig_TomSawyer_CI"),
+                (".{0,2}(Tom|Sawyer|Huckleberry|Finn)", RegexOptions.None, "Leipzig_Prefix02"),
+                (".{2,4}(Tom|Sawyer|Huckleberry|Finn)", RegexOptions.None, "Leipzig_Prefix24"),
+                ("Tom.{10,25}river|river.{10,25}Tom", RegexOptions.None, "Leipzig_TomRiver"),
+                (@"([A-Za-z]awyer|[A-Za-z]inn)\s", RegexOptions.None, "Leipzig_AwyerInn"),
+                // Boost
+                (@"^([0-9]+)(\-| |$)(.*)$", RegexOptions.None, "Boost_NumLine"),
+                (@"(\d{4}[- ]){3}\d{3,4}", RegexOptions.None, "Boost_CC"),
+                (@"^([a-zA-Z0-9_\-\.]+)@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.)|(([a-zA-Z0-9\-]+\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})(\]?)$", RegexOptions.None, "Boost_Email"),
+                (@"^[a-zA-Z]{1,2}[0-9][0-9A-Za-z]{0,1} {0,1}[0-9][A-Za-z]{2}$", RegexOptions.None, "Boost_PostCode"),
+                (@"^\d{1,2}/\d{1,2}/\d{4}$", RegexOptions.None, "Boost_Date"),
+                (@"^[-+]?\d*\.?\d*$", RegexOptions.None, "Boost_Number"),
+            };
+
+            int improved = 0;
+            var improvedList = new List<string>();
+            foreach (var (pattern, options, name) in patterns)
+            {
+                try
+                {
+                    RegexTree tree = RegexParser.Parse(pattern, options, CultureInfo.InvariantCulture);
+                    string before = tree.Root.ToString();
+                    tree.Root.ReReduceTree();
+                    string after = tree.Root.ToString();
+
+                    if (before != after)
+                    {
+                        improved++;
+                        int bNodes = before.Split('\n').Length;
+                        int aNodes = after.Split('\n').Length;
+                        _output.WriteLine($"IMPROVED: {name} ({pattern}) nodes: {bNodes}->{aNodes}");
+                        _output.WriteLine($"  BEFORE: {FlattenTree(before)}");
+                        _output.WriteLine($"  AFTER:  {FlattenTree(after)}");
+                        _output.WriteLine("");
+                        improvedList.Add($"{name}: {pattern} (nodes: {bNodes}->{aNodes})");
+                    }
+                    else
+                    {
+                        _output.WriteLine($"  unchanged: {name}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _output.WriteLine($"  ERROR: {name}: {ex.Message}");
+                }
+            }
+            _output.WriteLine($"");
+            _output.WriteLine($"Total benchmark patterns: {patterns.Length}");
+            _output.WriteLine($"Improved by ReReduce: {improved}");
+
+            string outputPath = Path.Combine(Path.GetTempPath(), "regex_benchmark_crossref.txt");
+            var lines = new List<string>
+            {
+                "=== BENCHMARK PATTERN CROSS-REFERENCE ===",
+                $"Total benchmark patterns tested: {patterns.Length}",
+                $"Improved by ReReduce: {improved}",
+                ""
+            };
+            lines.AddRange(improvedList);
+            File.WriteAllLines(outputPath, lines);
+        }
     }
 }
