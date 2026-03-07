@@ -181,6 +181,79 @@ namespace System.Text.RegularExpressions.Tests
         }
 
         /// <summary>
+        /// Generates a JSON baseline file mapping each pattern+options to its expected tree.
+        /// Output goes to the test directory as real_world_expected_trees.json.
+        /// </summary>
+        [Fact]
+        public void GenerateJsonBaseline()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("[");
+            int count = 0;
+
+            foreach (object[] data in RegexReductionBaselineTests.RealWorldPatterns())
+            {
+                string pattern = (string)data[0];
+                int options = (int)data[1];
+                string tree;
+                try
+                {
+                    tree = FlattenTree(RegexParser.Parse(pattern, (RegexOptions)options, CultureInfo.InvariantCulture).Root.ToString());
+                }
+                catch
+                {
+                    tree = null;
+                }
+
+                if (count > 0) sb.AppendLine(",");
+                sb.Append($"  {{\"p\":{JsonEncode(pattern)},\"o\":{options}");
+                if (tree != null) sb.Append($",\"t\":{JsonEncode(tree)}");
+                sb.Append("}");
+                count++;
+            }
+
+            sb.AppendLine();
+            sb.AppendLine("]");
+
+            string dir = Path.GetDirectoryName(typeof(RegexBaselineGenerator).Assembly.Location);
+            // Walk up to find test source directory (where the .csproj is)
+            string testDir = dir;
+            while (testDir != null && !File.Exists(Path.Combine(testDir, "System.Text.RegularExpressions.Unit.Tests.csproj")))
+                testDir = Path.GetDirectoryName(testDir);
+
+            string outputPath = testDir != null
+                ? Path.Combine(testDir, "real_world_expected_trees.json")
+                : Path.Combine(Path.GetTempPath(), "real_world_expected_trees.json");
+
+            File.WriteAllText(outputPath, sb.ToString(), Encoding.UTF8);
+            _output.WriteLine($"Wrote {count} entries to {outputPath}");
+        }
+
+        private static string JsonEncode(string s)
+        {
+            var sb = new StringBuilder("\"");
+            foreach (char c in s)
+            {
+                switch (c)
+                {
+                    case '"': sb.Append("\\\""); break;
+                    case '\\': sb.Append("\\\\"); break;
+                    case '\n': sb.Append("\\n"); break;
+                    case '\r': sb.Append("\\r"); break;
+                    case '\t': sb.Append("\\t"); break;
+                    case '\b': sb.Append("\\b"); break;
+                    case '\f': sb.Append("\\f"); break;
+                    default:
+                        if (c < 0x20) sb.Append($"\\u{(int)c:X4}");
+                        else sb.Append(c);
+                        break;
+                }
+            }
+            sb.Append('"');
+            return sb.ToString();
+        }
+
+        /// <summary>
         /// Compares current optimizer output against a previously-generated TSV baseline.
         /// Run GenerateTreeBaseline first (before changes), then make your changes, then run this.
         /// Reports: which patterns changed, how many nodes before/after, and the full diff.
