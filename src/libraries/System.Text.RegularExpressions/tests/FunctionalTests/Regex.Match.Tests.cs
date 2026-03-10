@@ -4233,11 +4233,7 @@ namespace System.Text.RegularExpressions.Tests
 
                 // \R in context: splitting lines
                 yield return new object[] { engine, @"[^\r\n\v\f\u0085\u2028\u2029]+", "foo\r\nbar\rbaz\n", RegexOptions.None, new[] { "foo", "bar", "baz" } };
-                // NonBacktracking doesn't support lookaheads
-                if (engine != RegexEngine.NonBacktracking)
-                {
-                    yield return new object[] { engine, @".+(?=\R|\z)", "foo\r\nbar\rbaz", RegexOptions.None, new[] { "foo\r", "bar\rbaz" } }; // without AnyNewLine, . matches \r
-                }
+                yield return new object[] { engine, @".+(?=\R|\z)", "foo\r\nbar\rbaz", RegexOptions.None, new[] { "foo\r", "bar\rbaz" } }; // without AnyNewLine, . matches \r
 
                 // \R with AnyNewLine: .+ stops at newlines, \R matches them
                 yield return new object[] { engine, @".+\R", "foo\r\nbar\n", RegexHelpers.RegexOptionAnyNewLine, new[] { "foo\r\n", "bar\n" } };
