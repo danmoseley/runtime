@@ -26,6 +26,27 @@ namespace System.IO.Tests
         }
 
         [Fact]
+        public static void Ctor_String_DirectoryPath()
+        {
+            string message = "Directory not found.";
+            string directoryPath = "/tmp/foo/bar";
+            var exception = new DirectoryNotFoundException(message, directoryPath);
+            Assert.Equal(directoryPath, exception.DirectoryPath);
+            ExceptionHelpers.ValidateExceptionProperties(exception, hResult: HResults.COR_E_DIRECTORYNOTFOUND, message: message);
+        }
+
+        [Fact]
+        public static void Ctor_String_DirectoryPath_Exception()
+        {
+            string message = "Directory not found.";
+            string directoryPath = "/tmp/foo/bar";
+            var innerException = new Exception("Inner exception");
+            var exception = new DirectoryNotFoundException(message, directoryPath, innerException);
+            Assert.Equal(directoryPath, exception.DirectoryPath);
+            ExceptionHelpers.ValidateExceptionProperties(exception, hResult: HResults.COR_E_DIRECTORYNOTFOUND, innerException: innerException, message: message);
+        }
+
+        [Fact]
         public static void Ctor_String_Exception()
         {
             string message = "That page was missing from the directory.";

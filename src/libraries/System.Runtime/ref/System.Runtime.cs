@@ -10300,6 +10300,9 @@ namespace System.IO
         protected DirectoryNotFoundException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
         public DirectoryNotFoundException(string? message) { }
         public DirectoryNotFoundException(string? message, System.Exception? innerException) { }
+        public DirectoryNotFoundException(string? message, string? directoryPath) { }
+        public DirectoryNotFoundException(string? message, string? directoryPath, System.Exception? innerException) { }
+        public string? DirectoryPath { get { throw null; } }
     }
     public partial class EndOfStreamException : System.IO.IOException
     {
