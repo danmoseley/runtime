@@ -35,11 +35,52 @@ namespace System.IO
             HResult = HResults.COR_E_DIRECTORYNOTFOUND;
         }
 
+        public DirectoryNotFoundException(string? message, string? directoryPath)
+            : base(message ?? SR.Arg_DirectoryNotFoundException)
+        {
+            HResult = HResults.COR_E_DIRECTORYNOTFOUND;
+            DirectoryPath = directoryPath;
+        }
+
+        public DirectoryNotFoundException(string? message, string? directoryPath, Exception? innerException)
+            : base(message ?? SR.Arg_DirectoryNotFoundException, innerException)
+        {
+            HResult = HResults.COR_E_DIRECTORYNOTFOUND;
+            DirectoryPath = directoryPath;
+        }
+
+        public string? DirectoryPath { get; }
+
+        public override string Message
+        {
+            get
+            {
+                if (base.Message != SR.Arg_DirectoryNotFoundException || string.IsNullOrEmpty(DirectoryPath))
+                {
+                    return base.Message;
+                }
+                return SR.Format(SR.IO_PathNotFound_Path, DirectoryPath);
+            }
+        }
+
         [Obsolete(Obsoletions.LegacyFormatterImplMessage, DiagnosticId = Obsoletions.LegacyFormatterImplDiagId, UrlFormat = Obsoletions.SharedUrlFormat)]
         [EditorBrowsable(EditorBrowsableState.Never)]
         protected DirectoryNotFoundException(SerializationInfo info, StreamingContext context)
             : base(info, context)
         {
+        }
+        }
+    }
+
+    // TEST: DirectoryNotFoundException exposes DirectoryPath and Message is correct
+    public class DirectoryNotFoundExceptionTests
+    {
+        [Xunit.Fact]
+        public void DirectoryNotFoundException_DirectoryPath_Message()
+        {
+            var ex = new DirectoryNotFoundException(null, "/tmp/foo");
+            Xunit.Assert.Equal("/tmp/foo", ex.DirectoryPath);
+            Xunit.Assert.Contains("/tmp/foo", ex.Message);
         }
     }
 }
