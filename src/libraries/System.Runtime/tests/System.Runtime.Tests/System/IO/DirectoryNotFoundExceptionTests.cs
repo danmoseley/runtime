@@ -33,5 +33,27 @@ namespace System.IO.Tests
             var exception = new DirectoryNotFoundException(message, innerException);
             ExceptionHelpers.ValidateExceptionProperties(exception, hResult: HResults.COR_E_DIRECTORYNOTFOUND, innerException: innerException, message: message);
         }
+
+        [Fact]
+        public static void Ctor_String_DirectoryPath()
+        {
+            string message = "Directory not found.";
+            string directoryPath = "/tmp/missingdir";
+            var exception = new DirectoryNotFoundException(message, directoryPath);
+            Assert.Equal(message, exception.Message);
+            Assert.Equal(directoryPath, exception.DirectoryPath);
+        }
+
+        [Fact]
+        public static void Ctor_String_DirectoryPath_Exception()
+        {
+            string message = "Directory not found.";
+            string directoryPath = "/tmp/missingdir";
+            var innerException = new Exception("Inner");
+            var exception = new DirectoryNotFoundException(message, directoryPath, innerException);
+            Assert.Equal(message, exception.Message);
+            Assert.Equal(directoryPath, exception.DirectoryPath);
+            Assert.Same(innerException, exception.InnerException);
+        }
     }
 }
