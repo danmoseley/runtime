@@ -69,18 +69,5 @@ namespace System.IO
             : base(info, context)
         {
         }
-        }
-    }
-
-    // TEST: DirectoryNotFoundException exposes DirectoryPath and Message is correct
-    public class DirectoryNotFoundExceptionTests
-    {
-        [Xunit.Fact]
-        public void DirectoryNotFoundException_DirectoryPath_Message()
-        {
-            var ex = new DirectoryNotFoundException(null, "/tmp/foo");
-            Xunit.Assert.Equal("/tmp/foo", ex.DirectoryPath);
-            Xunit.Assert.Contains("/tmp/foo", ex.Message);
-        }
     }
 }
