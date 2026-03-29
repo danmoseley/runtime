@@ -35,6 +35,15 @@ namespace System.Text.RegularExpressions.Tests
             yield return (@"H#", "#H#", RegexOptions.IgnoreCase, 0, 3, true, "H#"); // https://github.com/dotnet/runtime/issues/39390
             yield return (@"H#", "#H#", RegexOptions.None, 0, 3, true, "H#");
 
+            // \R (generic newline) tests
+            yield return (@"a\Rb", "a\nb", RegexOptions.None, 0, 3, true, "a\nb");
+            yield return (@"a\Rb", "a\rb", RegexOptions.None, 0, 3, true, "a\rb");
+            yield return (@"a\Rb", "a\r\nb", RegexOptions.None, 0, 4, true, "a\r\nb");
+            yield return (@"a\Rb", "a\u0085b", RegexOptions.None, 0, 3, true, "a\u0085b");
+            yield return (@"a\Rb", "a\u2028b", RegexOptions.None, 0, 3, true, "a\u2028b");
+            yield return (@"a\Rb", "a\u2029b", RegexOptions.None, 0, 3, true, "a\u2029b");
+            yield return (@"a\Rb", "acb", RegexOptions.None, 0, 0, false, string.Empty);
+
             // Testing octal sequence matches: "\\060(\\061)?\\061"
             // Octal \061 is ASCII 49 ('1')
             yield return (@"\060(\061)?\061", "011", RegexOptions.None, 0, 3, true, "011");

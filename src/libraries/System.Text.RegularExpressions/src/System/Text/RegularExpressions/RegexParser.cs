@@ -1195,6 +1195,36 @@ namespace System.Text.RegularExpressions
                     return scanOnly ? null :
                         new RegexNode(RegexNodeKind.Set, (_options & ~RegexOptions.IgnoreCase), (_options & RegexOptions.ECMAScript) != 0 ? RegexCharClass.NotECMADigitClass : RegexCharClass.NotDigitClass);
 
+                case 'R':
+                    _pos++;
+                    if (scanOnly)
+                    {
+                        return null;
+                    }
+                    // \R matches any Unicode newline sequence: \r\n | \n | \r | \u0085 | \u2028 | \u2029
+                    // Lower to: (?:\r\n|\n|\r|\u0085|\u2028|\u2029)
+                    // \R matches any Unicode newline sequence: \r\n | \n | \r | \u0085 | \u2028 | \u2029
+var alternation = new RegexNode(RegexNodeKind.Alternate, _options);
+// (?:\r\n)
+var concat = new RegexNode(RegexNodeKind.Concatenate, _options);
+concat.AddChild(new RegexNode(RegexNodeKind.One, _options, '\r'));
+concat.AddChild(new RegexNode(RegexNodeKind.One, _options, '\n'));
+alternation.AddChild(concat);
+// | \n
+alternation.AddChild(new RegexNode(RegexNodeKind.One, _options, '\n'));
+// | \r
+alternation.AddChild(new RegexNode(RegexNodeKind.One, _options, '\r'));
+// | \u0085
+alternation.AddChild(new RegexNode(RegexNodeKind.One, _options, '\u0085'));
+// | \u2028
+alternation.AddChild(new RegexNode(RegexNodeKind.One, _options, '\u2028'));
+// | \u2029
+alternation.AddChild(new RegexNode(RegexNodeKind.One, _options, '\u2029'));
+var group = new RegexNode(RegexNodeKind.Group, _options);
+group.AddChild(alternation);
+return group;
+
+
                 case 'p':
                 case 'P':
                     _pos++;
