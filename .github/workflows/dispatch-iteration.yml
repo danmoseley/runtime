@@ -1,0 +1,102 @@
+name: Dispatch Iteration After Aggregator
+
+# Fires when the Review Aggregator completes.
+# Checks PR labels — if ai:needs-iteration is set, dispatches the iteration agent.
+# If reviews found no blocking issues, the aggregator sets ai:ready-for-human instead.
+
+on:
+  workflow_run:
+    workflows: ["Review Aggregator"]
+    types: [completed]
+
+jobs:
+  dispatch-iteration:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Get PR number from aggregator run
+        id: get-pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_ID="${{ github.event.workflow_run.id }}"
+          echo "Aggregator run: $RUN_ID"
+
+          # The aggregator is a workflow_dispatch, so pull_requests may be empty.
+          # Instead, look at the run's inputs to find pr_number.
+          # We can get this from the workflow run's jobs/logs, or from the run inputs.
+          PR_NUM=$(gh api "repos/${{ github.repository }}/actions/runs/$RUN_ID" \
+            --jq '.inputs.pr_number // empty' 2>/dev/null || true)
+
+          if [ -z "$PR_NUM" ]; then
+            echo "Could not determine PR number from aggregator run"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "PR #$PR_NUM"
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "pr_number=$PR_NUM" >> "$GITHUB_OUTPUT"
+
+      - name: Check PR labels for iteration need
+        if: steps.get-pr.outputs.found == 'true'
+        id: check-labels
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_NUM="${{ steps.get-pr.outputs.pr_number }}"
+
+          LABELS=$(gh api "repos/${{ github.repository }}/issues/$PR_NUM/labels" \
+            --jq '[.[].name] | join(",")')
+          echo "PR #$PR_NUM labels: $LABELS"
+
+          if echo "$LABELS" | grep -q "ai:needs-iteration"; then
+            echo "needs_iteration=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No ai:needs-iteration label — skipping iteration dispatch"
+            echo "needs_iteration=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Extract fix instructions from aggregator comment
+        if: steps.check-labels.outputs.needs_iteration == 'true'
+        id: get-instructions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_NUM="${{ steps.get-pr.outputs.pr_number }}"
+
+          # Find the aggregator's comment (contains review synthesis)
+          # The aggregator posts a comment with review findings and fix instructions
+          COMMENT=$(gh api "repos/${{ github.repository }}/issues/$PR_NUM/comments?per_page=100" \
+            --jq '[.[] | select(.body | test("Review Aggregat|review synthesis|fix instruction"; "i"))] | last // empty')
+
+          if [ -z "$COMMENT" ] || [ "$COMMENT" = "null" ]; then
+            echo "No aggregator comment found, using generic instructions"
+            INSTRUCTIONS="Address the review feedback on this PR. Read the review comments carefully and fix all issues identified."
+          else
+            # Extract the comment body, truncate to 65000 chars (workflow_dispatch input limit)
+            INSTRUCTIONS=$(echo "$COMMENT" | jq -r '.body' | head -c 65000)
+          fi
+
+          # Save to file to avoid escaping issues
+          echo "$INSTRUCTIONS" > /tmp/fix_instructions.txt
+          echo "has_instructions=true" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch iteration agent
+        if: steps.check-labels.outputs.needs_iteration == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_NUM="${{ steps.get-pr.outputs.pr_number }}"
+          INSTRUCTIONS=$(cat /tmp/fix_instructions.txt)
+
+          echo "Dispatching iteration agent for PR #$PR_NUM"
+
+          gh workflow run agentic-fix-iterate.lock.yml \
+            -R "${{ github.repository }}" \
+            -f "pr_number=$PR_NUM" \
+            -f "fix_instructions=$INSTRUCTIONS" \
+            -f "upstream_repo=dotnet/runtime"
+
+          echo "✅ Iteration agent dispatched for PR #$PR_NUM"
