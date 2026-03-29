@@ -168,12 +168,15 @@ namespace System.Collections.Immutable
             ImmutableArray<T> self = this;
             self.ThrowNullRefIfNotInitialized();
 
-            if (count == 0 && startIndex == 0)
+            if (count == 0)
             {
-                return -1;
+                if (startIndex == 0 || startIndex == self.Length)
+                {
+                    return -1;
+                }
             }
 
-            Requires.Range(startIndex >= 0 && startIndex < self.Length, nameof(startIndex));
+            Requires.Range(startIndex >= 0 && startIndex <= self.Length, nameof(startIndex));
             Requires.Range(count >= 0 && startIndex + count <= self.Length, nameof(count));
 
             equalityComparer ??= EqualityComparer<T>.Default;

@@ -2855,5 +2855,12 @@ namespace System.Collections.Immutable.Tests
                 this.foo = foo;
             }
         }
+        [Fact]
+        public void IndexOf_StartIndexEqualsLengthAndCountZero_ReturnsMinusOne()
+        {
+            var array = ImmutableArray.Create(1, 2, 3, 4);
+            int index = array.IndexOf(2, 4, 0);
+            Assert.Equal(-1, index);
+        }
     }
 }
