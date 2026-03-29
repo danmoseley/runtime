@@ -10926,6 +10926,7 @@ namespace System.IO
         public virtual System.IO.Stream BaseStream { get { throw null; } }
         public virtual System.Text.Encoding CurrentEncoding { get { throw null; } }
         public bool EndOfStream { get { throw null; } }
+        public override System.Threading.Tasks.ValueTask DisposeAsync() { throw null; }
         public override void Close() { }
         public void DiscardBufferedData() { }
         protected override void Dispose(bool disposing) { }
@@ -11046,7 +11047,7 @@ namespace System.IO
         public override System.Threading.Tasks.Task WriteLineAsync(string? value) { throw null; }
         public override System.Threading.Tasks.Task WriteLineAsync(System.Text.StringBuilder? value, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) { throw null; }
     }
-    public abstract partial class TextReader : System.MarshalByRefObject, System.IDisposable
+    public abstract partial class TextReader : System.MarshalByRefObject, System.IDisposable, System.IAsyncDisposable
     {
         public static readonly System.IO.TextReader Null;
         protected TextReader() { }
@@ -11069,6 +11070,7 @@ namespace System.IO
         public virtual string ReadToEnd() { throw null; }
         public virtual System.Threading.Tasks.Task<string> ReadToEndAsync() { throw null; }
         public virtual System.Threading.Tasks.Task<string> ReadToEndAsync(System.Threading.CancellationToken cancellationToken) { throw null; }
+        public virtual System.Threading.Tasks.ValueTask DisposeAsync() { throw null; }
         public static System.IO.TextReader Synchronized(System.IO.TextReader reader) { throw null; }
     }
     public abstract partial class TextWriter : System.MarshalByRefObject, System.IAsyncDisposable, System.IDisposable

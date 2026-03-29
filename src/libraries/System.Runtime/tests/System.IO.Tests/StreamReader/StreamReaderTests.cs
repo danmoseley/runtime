@@ -15,6 +15,15 @@ namespace System.IO.Tests
 {
     public partial class StreamReaderTests
     {
+        [Fact]
+        public async Task DisposeAsync_DoesNotThrow()
+        {
+            using var ms = new MemoryStream(Encoding.UTF8.GetBytes("abc"));
+            var reader = new StreamReader(ms);
+            await reader.DisposeAsync();
+            // Should not throw
+        }
+
         private const string LowerAlpha = "abcdefghijklmnopqrstuvwxyz";
 
         protected virtual Stream CreateStream()
