@@ -2855,5 +2855,28 @@ namespace System.Collections.Immutable.Tests
                 this.foo = foo;
             }
         }
+        
+        [Theory]
+        [InlineData(0, 0)]   // startIndex 0, count 0
+        [InlineData(4, 0)]   // startIndex == Length, count 0
+        [InlineData(2, 0)]   // intermediate startIndex, count 0
+        public void IndexOf_CountZero_ReturnsMinusOne(int startIndex, int count)
+        {
+            var array = ImmutableArray.Create(1, 2, 3, 4);
+            Assert.Equal(-1, array.IndexOf(2, startIndex, count));
+        }
+
+        [Fact]
+        public void IndexOf_EmptyArray_CountZero_ReturnsMinusOne()
+        {
+            Assert.Equal(-1, ImmutableArray<int>.Empty.IndexOf(1, 0, 0));
+        }
+
+        [Fact]
+        public void IndexOf_Builder_CountZero_ReturnsMinusOne()
+        {
+            var builder = ImmutableArray.Create(1, 2, 3, 4).ToBuilder();
+            Assert.Equal(-1, builder.IndexOf(2, builder.Count, 0));
+        }
     }
 }
