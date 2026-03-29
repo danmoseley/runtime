@@ -2,7 +2,6 @@ name: Dispatch Iteration After Aggregator
 
 # Fires when the Review Aggregator completes.
 # Checks PR labels — if ai:needs-iteration is set, dispatches the iteration agent.
-# If reviews found no blocking issues, the aggregator sets ai:ready-for-human instead.
 
 on:
   workflow_run:
@@ -15,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Get PR number from aggregator run
+      - name: Find PR from aggregator run
         id: get-pr
         env:
           GH_TOKEN: ${{ github.token }}
@@ -23,21 +22,48 @@ jobs:
           RUN_ID="${{ github.event.workflow_run.id }}"
           echo "Aggregator run: $RUN_ID"
 
-          # The aggregator is a workflow_dispatch, so pull_requests may be empty.
-          # Instead, look at the run's inputs to find pr_number.
-          # We can get this from the workflow run's jobs/logs, or from the run inputs.
-          PR_NUM=$(gh api "repos/${{ github.repository }}/actions/runs/$RUN_ID" \
-            --jq '.inputs.pr_number // empty' 2>/dev/null || true)
+          # The aggregator is workflow_dispatch — inputs aren't in the API response.
+          # Instead, find which PR has a fresh aggregator comment.
+          # Search open PRs with ai: labels for the one the aggregator just processed.
+          # The aggregator posts a comment containing "Review Aggregat" — find the most recent.
+          
+          # Get the run's display_title which includes the inputs
+          DISPLAY_TITLE=$(gh api "repos/${{ github.repository }}/actions/runs/$RUN_ID" \
+            --jq '.display_title // empty' 2>/dev/null || true)
+          echo "Run display title: $DISPLAY_TITLE"
 
-          if [ -z "$PR_NUM" ]; then
-            echo "Could not determine PR number from aggregator run"
-            echo "found=false" >> "$GITHUB_OUTPUT"
-            exit 0
+          # Try to extract PR number from display title (format often includes input values)
+          PR_NUM=$(echo "$DISPLAY_TITLE" | grep -oP '\b\d+\b' | head -1 || true)
+
+          # Validate: check this PR exists and has ai: labels
+          if [ -n "$PR_NUM" ]; then
+            PR_STATE=$(gh api "repos/${{ github.repository }}/pulls/$PR_NUM" --jq '.state' 2>/dev/null || true)
+            if [ "$PR_STATE" = "open" ]; then
+              echo "Found PR #$PR_NUM from display title"
+              echo "found=true" >> "$GITHUB_OUTPUT"
+              echo "pr_number=$PR_NUM" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
           fi
 
-          echo "PR #$PR_NUM"
-          echo "found=true" >> "$GITHUB_OUTPUT"
-          echo "pr_number=$PR_NUM" >> "$GITHUB_OUTPUT"
+          # Fallback: search recent open PRs for one with a fresh aggregator comment
+          echo "Searching open PRs for recent aggregator comment..."
+          OPEN_PRS=$(gh api "repos/${{ github.repository }}/pulls?state=open&per_page=10" \
+            --jq '.[].number' 2>/dev/null || true)
+
+          for PR in $OPEN_PRS; do
+            HAS_AGG=$(gh api "repos/${{ github.repository }}/issues/$PR/comments?per_page=5&sort=created&direction=desc" \
+              --jq '[.[] | select(.body | test("Review Aggregat"; "i")) | select(.created_at > (now - 600 | todate))] | length' 2>/dev/null || echo "0")
+            if [ "$HAS_AGG" -gt 0 ]; then
+              echo "Found PR #$PR with recent aggregator comment"
+              echo "found=true" >> "$GITHUB_OUTPUT"
+              echo "pr_number=$PR" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+
+          echo "Could not determine PR number from aggregator run"
+          echo "found=false" >> "$GITHUB_OUTPUT"
 
       - name: Check PR labels for iteration need
         if: steps.get-pr.outputs.found == 'true'
@@ -66,22 +92,16 @@ jobs:
         run: |
           PR_NUM="${{ steps.get-pr.outputs.pr_number }}"
 
-          # Find the aggregator's comment (contains review synthesis)
-          # The aggregator posts a comment with review findings and fix instructions
-          COMMENT=$(gh api "repos/${{ github.repository }}/issues/$PR_NUM/comments?per_page=100" \
-            --jq '[.[] | select(.body | test("Review Aggregat|review synthesis|fix instruction"; "i"))] | last // empty')
+          # Find the aggregator's most recent comment
+          BODY=$(gh api "repos/${{ github.repository }}/issues/$PR_NUM/comments?per_page=100" \
+            --jq '[.[] | select(.body | test("Review Aggregat"; "i"))] | last.body // empty')
 
-          if [ -z "$COMMENT" ] || [ "$COMMENT" = "null" ]; then
-            echo "No aggregator comment found, using generic instructions"
-            INSTRUCTIONS="Address the review feedback on this PR. Read the review comments carefully and fix all issues identified."
-          else
-            # Extract the comment body, truncate to 65000 chars (workflow_dispatch input limit)
-            INSTRUCTIONS=$(echo "$COMMENT" | jq -r '.body' | head -c 65000)
+          if [ -z "$BODY" ] || [ "$BODY" = "null" ]; then
+            BODY="Address the review feedback on this PR. Read the review comments carefully and fix all issues identified."
           fi
 
-          # Save to file to avoid escaping issues
-          echo "$INSTRUCTIONS" > /tmp/fix_instructions.txt
-          echo "has_instructions=true" >> "$GITHUB_OUTPUT"
+          # Truncate to 65000 chars (workflow_dispatch input limit)
+          echo "$BODY" | head -c 65000 > /tmp/fix_instructions.txt
 
       - name: Dispatch iteration agent
         if: steps.check-labels.outputs.needs_iteration == 'true'

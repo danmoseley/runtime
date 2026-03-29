@@ -9,6 +9,11 @@ on:
     workflows: ["Code Review", "API Surface Review"]
     types: [completed]
 
+# Prevent duplicate dispatchers for the same PR
+concurrency:
+  group: dispatch-aggregator-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
 jobs:
   dispatch-aggregator:
     runs-on: ubuntu-latest
@@ -19,15 +24,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # The triggering workflow was a pull_request workflow.
-          # Get its PR number from the workflow run's pull_requests array.
           RUN_ID="${{ github.event.workflow_run.id }}"
           WORKFLOW_NAME="${{ github.event.workflow_run.name }}"
           echo "Triggered by: $WORKFLOW_NAME (run $RUN_ID)"
 
-          # Get PR number from the workflow run
+          # The triggering workflow was a pull_request workflow.
+          # Get PR number from the workflow_run event payload directly.
           PR_JSON=$(gh api "repos/${{ github.repository }}/actions/runs/$RUN_ID" \
-            --jq '.pull_requests[0].number // empty' 2>/dev/null || true)
+            --jq '.pull_requests | if length > 0 then .[0].number else empty end' 2>/dev/null || true)
 
           if [ -z "$PR_JSON" ]; then
             echo "No PR associated with workflow run $RUN_ID"
@@ -47,11 +51,9 @@ jobs:
         run: |
           PR_NUM="${{ steps.get-pr.outputs.pr_number }}"
 
-          # Get the head SHA of the PR to find check runs
           HEAD_SHA=$(gh api "repos/${{ github.repository }}/pulls/$PR_NUM" --jq '.head.sha')
           echo "PR #$PR_NUM head SHA: $HEAD_SHA"
 
-          # List workflow runs for this commit
           CODE_REVIEW=$(gh api "repos/${{ github.repository }}/actions/runs?head_sha=$HEAD_SHA&event=pull_request" \
             --jq '[.workflow_runs[] | select(.name == "Code Review" and .status == "completed")] | length')
           API_REVIEW=$(gh api "repos/${{ github.repository }}/actions/runs?head_sha=$HEAD_SHA&event=pull_request" \
@@ -75,13 +77,20 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           PR_NUM="${{ steps.get-pr.outputs.pr_number }}"
+          HEAD_SHA=$(gh api "repos/${{ github.repository }}/pulls/$PR_NUM" --jq '.head.sha')
 
-          # Check if aggregator was already dispatched for this PR (look for its comment)
+          # Check for existing aggregator comment OR in-progress aggregator runs
           EXISTING=$(gh api "repos/${{ github.repository }}/issues/$PR_NUM/comments" \
             --jq '[.[] | select(.body | contains("Review Aggregator"))] | length')
+          RUNNING=$(gh api "repos/${{ github.repository }}/actions/workflows/review-aggregator.lock.yml/runs?status=in_progress" \
+            --jq '.total_count' 2>/dev/null || echo "0")
+          QUEUED=$(gh api "repos/${{ github.repository }}/actions/workflows/review-aggregator.lock.yml/runs?status=queued" \
+            --jq '.total_count' 2>/dev/null || echo "0")
 
-          if [ "$EXISTING" -gt 0 ]; then
-            echo "Aggregator already ran for PR #$PR_NUM, skipping"
+          echo "Existing comments: $EXISTING, Running: $RUNNING, Queued: $QUEUED"
+
+          if [ "$EXISTING" -gt 0 ] || [ "$RUNNING" -gt 0 ] || [ "$QUEUED" -gt 0 ]; then
+            echo "Aggregator already dispatched/running for PR #$PR_NUM, skipping"
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
