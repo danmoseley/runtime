@@ -10909,6 +10909,8 @@ namespace System.IO
     }
     public partial class StreamReader : System.IO.TextReader
     {
+        public override System.Threading.Tasks.ValueTask DisposeAsync() { throw null; }
+
         public static readonly new System.IO.StreamReader Null;
         public StreamReader(System.IO.Stream stream) { }
         public StreamReader(System.IO.Stream stream, bool detectEncodingFromByteOrderMarks) { }
@@ -11046,11 +11048,12 @@ namespace System.IO
         public override System.Threading.Tasks.Task WriteLineAsync(string? value) { throw null; }
         public override System.Threading.Tasks.Task WriteLineAsync(System.Text.StringBuilder? value, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) { throw null; }
     }
-    public abstract partial class TextReader : System.MarshalByRefObject, System.IDisposable
+    public abstract partial class TextReader : System.MarshalByRefObject, System.IDisposable, System.IAsyncDisposable
     {
         public static readonly System.IO.TextReader Null;
         protected TextReader() { }
         public virtual void Close() { }
+        public virtual System.Threading.Tasks.ValueTask DisposeAsync() { throw null; }
         public void Dispose() { }
         protected virtual void Dispose(bool disposing) { }
         public virtual int Peek() { throw null; }
