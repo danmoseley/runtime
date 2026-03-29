@@ -45,7 +45,49 @@ namespace System.Linq
         }
 
         [DynamicDependency("Where`1", typeof(Enumerable))]
-        public static IQueryable<TSource> Where<TSource>(this IQueryable<TSource> source, Expression<Func<TSource, bool>> predicate)
+        public static IQueryable<(TOuter Outer, TInner Inner)> Join<TOuter, TInner, TKey>(this IQueryable<TOuter> outer, IQueryable<TInner> inner, Expression<Func<TOuter, TKey>> outerKeySelector, Expression<Func<TInner, TKey>> innerKeySelector)
+{
+    if (outer is null)
+    {
+        throw new ArgumentNullException(nameof(outer));
+    }
+    if (inner is null)
+    {
+        throw new ArgumentNullException(nameof(inner));
+    }
+    if (outerKeySelector is null)
+    {
+        throw new ArgumentNullException(nameof(outerKeySelector));
+    }
+    if (innerKeySelector is null)
+    {
+        throw new ArgumentNullException(nameof(innerKeySelector));
+    }
+    return outer.Join(inner, outerKeySelector, innerKeySelector, (o, i) => (o, i));
+}
+
+public static IQueryable<(TOuter Outer, TInner Inner)> Join<TOuter, TInner, TKey>(this IQueryable<TOuter> outer, IQueryable<TInner> inner, Expression<Func<TOuter, TKey>> outerKeySelector, Expression<Func<TInner, TKey>> innerKeySelector, IEqualityComparer<TKey>? comparer)
+{
+    if (outer is null)
+    {
+        throw new ArgumentNullException(nameof(outer));
+    }
+    if (inner is null)
+    {
+        throw new ArgumentNullException(nameof(inner));
+    }
+    if (outerKeySelector is null)
+    {
+        throw new ArgumentNullException(nameof(outerKeySelector));
+    }
+    if (innerKeySelector is null)
+    {
+        throw new ArgumentNullException(nameof(innerKeySelector));
+    }
+    return outer.Join(inner, outerKeySelector, innerKeySelector, (o, i) => (o, i), comparer);
+}
+
+public static IQueryable<TSource> Where<TSource>(this IQueryable<TSource> source, Expression<Func<TSource, bool>> predicate)
         {
             ArgumentNullException.ThrowIfNull(source);
             ArgumentNullException.ThrowIfNull(predicate);
