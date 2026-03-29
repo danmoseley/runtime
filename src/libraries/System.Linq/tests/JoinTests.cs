@@ -46,6 +46,29 @@ namespace System.Linq.Tests
         }
 
         [Fact]
+        public void TupleJoin_Basic_Succeeds()
+        {
+            CustomerRec[] outer =
+            [
+                new CustomerRec{ name = "Alice", custID = 1 },
+                new CustomerRec{ name = "Bob", custID = 2 }
+            ];
+            OrderRec[] inner =
+            [
+                new OrderRec{ orderID = 100, custID = 1, total = 50 },
+                new OrderRec{ orderID = 200, custID = 2, total = 25 },
+                new OrderRec{ orderID = 300, custID = 3, total = 10 }
+            ];
+            var result = outer.Join(inner, o => o.custID, i => i.custID);
+            var expected = new (CustomerRec, OrderRec)[]
+            {
+                (outer[0], inner[0]),
+                (outer[1], inner[1])
+            };
+            Assert.Equal(expected, result.ToArray());
+        }
+
+        [Fact]
         public void OuterEmptyInnerNonEmpty()
         {
             CustomerRec[] outer = [];
