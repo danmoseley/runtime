@@ -46,6 +46,108 @@ namespace System.Linq.Tests
         }
 
         [Fact]
+public void TupleJoin_Basic_Succeeds()
+{
+    CustomerRec[] outer =
+    [
+        new CustomerRec{ name = "Alice", custID = 1 },
+        new CustomerRec{ name = "Bob", custID = 2 }
+    ];
+    OrderRec[] inner =
+    [
+        new OrderRec{ orderID = 100, custID = 1, total = 50 },
+        new OrderRec{ orderID = 200, custID = 2, total = 25 },
+        new OrderRec{ orderID = 300, custID = 3, total = 10 }
+    ];
+    var result = outer.Join(inner, o => o.custID, i => i.custID, (o, i) => (o, i));
+    var expected = new (CustomerRec, OrderRec)[]
+    {
+        (outer[0], inner[0]),
+        (outer[1], inner[1])
+    };
+    Assert.Equal(expected, result.ToArray());
+
+    // With comparer
+    var resultWithComparer = outer.Join(inner, o => o.custID, i => i.custID, (o, i) => (o, i), EqualityComparer<int>.Default);
+    Assert.Equal(expected, resultWithComparer.ToArray());
+}
+
+[Fact]
+public void TupleJoin_NullArguments_Throws()
+{
+    CustomerRec[] outer = [new CustomerRec{ name = "Alice", custID = 1 }];
+    OrderRec[] inner = [new OrderRec{ orderID = 100, custID = 1, total = 50 }];
+    Assert.Throws<ArgumentNullException>(() => ((CustomerRec[])null).Join(inner, o => o.custID, i => i.custID, (o, i) => (o, i)));
+    Assert.Throws<ArgumentNullException>(() => outer.Join((OrderRec[])null, o => o.custID, i => i.custID, (o, i) => (o, i)));
+    Assert.Throws<ArgumentNullException>(() => outer.Join(inner, null, i => i.custID, (o, i) => (o, i)));
+    Assert.Throws<ArgumentNullException>(() => outer.Join(inner, o => o.custID, null, (o, i) => (o, i)));
+    Assert.Throws<ArgumentNullException>(() => ((CustomerRec[])null).Join(inner, o => o.custID, i => i.custID, (o, i) => (o, i), EqualityComparer<int>.Default));
+    Assert.Throws<ArgumentNullException>(() => outer.Join((OrderRec[])null, o => o.custID, i => i.custID, (o, i) => (o, i), EqualityComparer<int>.Default));
+    Assert.Throws<ArgumentNullException>(() => outer.Join(inner, null, i => i.custID, (o, i) => (o, i), EqualityComparer<int>.Default));
+    Assert.Throws<ArgumentNullException>(() => outer.Join(inner, o => o.custID, null, (o, i) => (o, i), EqualityComparer<int>.Default));
+}
+
+[Fact]
+public void TupleJoin_EmptySequences_ReturnsEmpty()
+{
+    CustomerRec[] outer = [];
+    OrderRec[] inner = [];
+    var result = outer.Join(inner, o => o.custID, i => i.custID, (o, i) => (o, i));
+    Assert.Empty(result);
+    var resultWithComparer = outer.Join(inner, o => o.custID, i => i.custID, (o, i) => (o, i), EqualityComparer<int>.Default);
+    Assert.Empty(resultWithComparer);
+}
+
+[Fact]
+public void TupleJoin_MultipleMatches_PerKey()
+{
+    CustomerRec[] outer =
+    [
+        new CustomerRec{ name = "Alice", custID = 1 },
+        new CustomerRec{ name = "Bob", custID = 2 }
+    ];
+    OrderRec[] inner =
+    [
+        new OrderRec{ orderID = 100, custID = 1, total = 50 },
+        new OrderRec{ orderID = 101, custID = 1, total = 60 },
+        new OrderRec{ orderID = 200, custID = 2, total = 25 }
+    ];
+    var result = outer.Join<CustomerRec, OrderRec, int, (CustomerRec, OrderRec)>(inner, o => o.custID, i => i.custID, (o, i) => (o, i)).ToArray();
+    Assert.Contains((outer[0], inner[0]), result);
+    Assert.Contains((outer[0], inner[1]), result);
+    Assert.Contains((outer[1], inner[2]), result);
+    Assert.Equal(3, result.Length);
+}
+
+[Fact]
+public void TupleJoin_DeferredExecution()
+{
+    bool enumerated = false;
+    IEnumerable<CustomerRec> outer = GetCustomerEnumerable();
+    IEnumerable<OrderRec> inner = GetOrderEnumerable();
+    var query = outer.Join(inner, o => o.custID, i => i.custID, (o, i) => (o, i));
+    // Not yet enumerated
+    Assert.False(enumerated);
+    _ = query.ToList();
+    // Now enumerated
+    Assert.True(enumerated);
+
+    IEnumerable<CustomerRec> GetCustomerEnumerable()
+    {
+        enumerated = false;
+        yield return new CustomerRec{ name = "Alice", custID = 1 };
+        enumerated = true;
+    }
+    IEnumerable<OrderRec> GetOrderEnumerable()
+    {
+        enumerated = false;
+        yield return new OrderRec{ orderID = 100, custID = 1, total = 50 };
+        enumerated = true;
+    }
+}
+
+
+        [Fact]
         public void OuterEmptyInnerNonEmpty()
         {
             CustomerRec[] outer = [];

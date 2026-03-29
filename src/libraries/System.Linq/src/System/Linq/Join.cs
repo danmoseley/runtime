@@ -14,13 +14,11 @@ namespace System.Linq
         /// <param name="inner">The sequence to join to the first sequence.</param>
         /// <param name="outerKeySelector">A function to extract the join key from each element of the first sequence.</param>
         /// <param name="innerKeySelector">A function to extract the join key from each element of the second sequence.</param>
-        /// <param name="resultSelector">A function to create a result element from two matching elements.</param>
         /// <typeparam name="TOuter">The type of the elements of the first sequence.</typeparam>
         /// <typeparam name="TInner">The type of the elements of the second sequence.</typeparam>
         /// <typeparam name="TKey">The type of the keys returned by the key selector functions.</typeparam>
-        /// <typeparam name="TResult">The type of the result elements.</typeparam>
-        /// <returns>An <see cref="IEnumerable{T}" /> that has elements of type <typeparamref name="TResult" /> that are obtained by performing an inner join on two sequences.</returns>
-        /// <exception cref="ArgumentNullException"><paramref name="outer" /> or <paramref name="inner" /> or <paramref name="outerKeySelector" /> or <paramref name="innerKeySelector" /> or <paramref name="resultSelector" /> is <see langword="null" />.</exception>
+        /// <returns>An <see cref="IEnumerable{T}" /> that has elements of type <see cref="ValueTuple{TOuter, TInner}"/> that are obtained by performing an inner join on two sequences.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="outer" /> or <paramref name="inner" /> or <paramref name="outerKeySelector" /> or <paramref name="innerKeySelector" /> is <see langword="null" />.</exception>
         /// <example>
         /// <para>
         /// The following code example demonstrates how to use <see cref="Join{TOuter, TInner, TKey, TResult}(IEnumerable{TOuter}, IEnumerable{TInner}, Func{TOuter, TKey}, Func{TInner, TKey}, Func{TOuter, TInner, TResult})" /> to perform an inner join of two sequences based on a common key.
@@ -107,6 +105,73 @@ namespace System.Linq
         /// For more information, see <see href="/dotnet/csharp/linq/standard-query-operators/join-operations">Join operations</see>.
         /// </para>
         /// </remarks>
+        /// <summary>
+/// Correlates the elements of two sequences based on matching keys. The default equality comparer is used to compare keys.
+/// </summary>
+/// <param name="outer">The first sequence to join.</param>
+/// <param name="inner">The sequence to join to the first sequence.</param>
+/// <param name="outerKeySelector">A function to extract the join key from each element of the first sequence.</param>
+/// <param name="innerKeySelector">A function to extract the join key from each element of the second sequence.</param>
+/// <typeparam name="TOuter">The type of the elements of the first sequence.</typeparam>
+/// <typeparam name="TInner">The type of the elements of the second sequence.</typeparam>
+/// <typeparam name="TKey">The type of the keys returned by the key selector functions.</typeparam>
+/// <returns>An <see cref="IEnumerable{T}" /> that has elements of type <see cref="ValueTuple{TOuter, TInner}"/> that are obtained by performing an inner join on two sequences.</returns>
+/// <exception cref="ArgumentNullException"><paramref name="outer" /> or <paramref name="inner" /> or <paramref name="outerKeySelector" /> or <paramref name="innerKeySelector" /> is <see langword="null" />.</exception>
+public static IEnumerable<(TOuter Outer, TInner Inner)> Join<TOuter, TInner, TKey>(this IEnumerable<TOuter> outer, IEnumerable<TInner> inner, Func<TOuter, TKey> outerKeySelector, Func<TInner, TKey> innerKeySelector)
+{
+    if (outer is null)
+    {
+        ThrowHelper.ThrowArgumentNullException(ExceptionArgument.outer);
+    }
+    if (inner is null)
+    {
+        ThrowHelper.ThrowArgumentNullException(ExceptionArgument.inner);
+    }
+    if (outerKeySelector is null)
+    {
+        ThrowHelper.ThrowArgumentNullException(ExceptionArgument.outerKeySelector);
+    }
+    if (innerKeySelector is null)
+    {
+        ThrowHelper.ThrowArgumentNullException(ExceptionArgument.innerKeySelector);
+    }
+    return Join(outer, inner, outerKeySelector, innerKeySelector, (o, i) => (o, i));
+}
+
+/// <summary>
+/// Correlates the elements of two sequences based on matching keys. A specified <see cref="IEqualityComparer{T}" /> is used to compare keys.
+/// </summary>
+/// <param name="outer">The first sequence to join.</param>
+/// <param name="inner">The sequence to join to the first sequence.</param>
+/// <param name="outerKeySelector">A function to extract the join key from each element of the first sequence.</param>
+/// <param name="innerKeySelector">A function to extract the join key from each element of the second sequence.</param>
+/// <param name="comparer">An <see cref="IEqualityComparer{T}" /> to hash and compare keys.</param>
+/// <typeparam name="TOuter">The type of the elements of the first sequence.</typeparam>
+/// <typeparam name="TInner">The type of the elements of the second sequence.</typeparam>
+/// <typeparam name="TKey">The type of the keys returned by the key selector functions.</typeparam>
+/// <returns>An <see cref="IEnumerable{T}" /> that has elements of type <see cref="ValueTuple{TOuter, TInner}"/> that are obtained by performing an inner join on two sequences.</returns>
+/// <exception cref="ArgumentNullException"><paramref name="outer" /> or <paramref name="inner" /> or <paramref name="outerKeySelector" /> or <paramref name="innerKeySelector" /> is <see langword="null" />.</exception>
+public static IEnumerable<(TOuter Outer, TInner Inner)> Join<TOuter, TInner, TKey>(this IEnumerable<TOuter> outer, IEnumerable<TInner> inner, Func<TOuter, TKey> outerKeySelector, Func<TInner, TKey> innerKeySelector, IEqualityComparer<TKey>? comparer)
+{
+    if (outer is null)
+    {
+        ThrowHelper.ThrowArgumentNullException(ExceptionArgument.outer);
+    }
+    if (inner is null)
+    {
+        ThrowHelper.ThrowArgumentNullException(ExceptionArgument.inner);
+    }
+    if (outerKeySelector is null)
+    {
+        ThrowHelper.ThrowArgumentNullException(ExceptionArgument.outerKeySelector);
+    }
+    if (innerKeySelector is null)
+    {
+        ThrowHelper.ThrowArgumentNullException(ExceptionArgument.innerKeySelector);
+    }
+    return Join(outer, inner, outerKeySelector, innerKeySelector, (o, i) => (o, i), comparer);
+}
+
         public static IEnumerable<TResult> Join<TOuter, TInner, TKey, TResult>(this IEnumerable<TOuter> outer, IEnumerable<TInner> inner, Func<TOuter, TKey> outerKeySelector, Func<TInner, TKey> innerKeySelector, Func<TOuter, TInner, TResult> resultSelector) =>
             Join(outer, inner, outerKeySelector, innerKeySelector, resultSelector, comparer: null);
 

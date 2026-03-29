@@ -10,6 +10,9 @@ namespace System.Linq
 {
     public static partial class Enumerable
     {
+        public static System.Collections.Generic.IEnumerable<(TOuter Outer, TInner Inner)> Join<TOuter, TInner, TKey>(this System.Collections.Generic.IEnumerable<TOuter> outer, System.Collections.Generic.IEnumerable<TInner> inner, System.Func<TOuter, TKey> outerKeySelector, System.Func<TInner, TKey> innerKeySelector) { throw null; }
+public static System.Collections.Generic.IEnumerable<(TOuter Outer, TInner Inner)> Join<TOuter, TInner, TKey>(this System.Collections.Generic.IEnumerable<TOuter> outer, System.Collections.Generic.IEnumerable<TInner> inner, System.Func<TOuter, TKey> outerKeySelector, System.Func<TInner, TKey> innerKeySelector, System.Collections.Generic.IEqualityComparer<TKey>? comparer) { throw null; }
+public static System.Collections.Generic.IEnumerable<(TOuter Outer, TInner Inner)> Join<TOuter, TInner, TKey>(this System.Collections.Generic.IEnumerable<TOuter> outer, System.Collections.Generic.IEnumerable<TInner> inner, System.Func<TOuter, TKey> outerKeySelector, System.Func<TInner, TKey> innerKeySelector, System.Collections.Generic.IEqualityComparer<TKey>? comparer) { throw null; }
         public static TSource Aggregate<TSource>(this System.Collections.Generic.IEnumerable<TSource> source, System.Func<TSource, TSource, TSource> func) { throw null; }
         public static TAccumulate Aggregate<TSource, TAccumulate>(this System.Collections.Generic.IEnumerable<TSource> source, TAccumulate seed, System.Func<TAccumulate, TSource, TAccumulate> func) { throw null; }
         public static TResult Aggregate<TSource, TAccumulate, TResult>(this System.Collections.Generic.IEnumerable<TSource> source, TAccumulate seed, System.Func<TAccumulate, TSource, TAccumulate> func, System.Func<TAccumulate, TResult> resultSelector) { throw null; }
