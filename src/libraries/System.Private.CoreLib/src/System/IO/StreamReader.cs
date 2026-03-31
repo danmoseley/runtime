@@ -16,6 +16,13 @@ namespace System.IO
     // whereas the Stream class is designed for byte input and output.
     public class StreamReader : TextReader
     {
+        public override async ValueTask DisposeAsync()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+            await Task.CompletedTask;
+        }
+
         // StreamReader.Null is threadsafe.
         public static new readonly StreamReader Null = new NullStreamReader();
 

@@ -4,6 +4,23 @@
 using System.Collections.Generic;
 using System.Text;
 using Xunit;
+using System.Threading.Tasks;
+
+namespace System.IO.Tests
+{
+    public partial class StreamReaderTests : FileCleanupTestBase
+    {
+        [Fact]
+        public async Task DisposeAsync_ClosesStreamAsync()
+        {
+            var ms = new MemoryStream(Encoding.UTF8.GetBytes("Hello World"));
+            var reader = new StreamReader(ms);
+            await reader.DisposeAsync();
+            Assert.Throws<ObjectDisposedException>(() => ms.ReadByte());
+        }
+    }
+}
+
 
 namespace System.IO.Tests
 {
