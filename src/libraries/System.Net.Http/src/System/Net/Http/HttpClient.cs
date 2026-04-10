@@ -168,9 +168,16 @@ namespace System.Net.Http
         public Task<string> GetStringAsync(Uri? requestUri, CancellationToken cancellationToken)
         {
             HttpRequestMessage request = CreateRequestMessage(HttpMethod.Get, requestUri);
-
-            // Called outside of async state machine to propagate certain exception even without awaiting the returned task.
-            CheckRequestBeforeSend(request);
+            try
+            {
+                // Called outside of async state machine to propagate certain exception even without awaiting the returned task.
+                CheckRequestBeforeSend(request);
+            }
+            catch
+            {
+                request.Dispose();
+                throw;
+            }
 
             return GetStringAsyncCore(request, cancellationToken);
         }
@@ -240,9 +247,16 @@ namespace System.Net.Http
         public Task<byte[]> GetByteArrayAsync(Uri? requestUri, CancellationToken cancellationToken)
         {
             HttpRequestMessage request = CreateRequestMessage(HttpMethod.Get, requestUri);
-
-            // Called outside of async state machine to propagate certain exception even without awaiting the returned task.
-            CheckRequestBeforeSend(request);
+            try
+            {
+                // Called outside of async state machine to propagate certain exception even without awaiting the returned task.
+                CheckRequestBeforeSend(request);
+            }
+            catch
+            {
+                request.Dispose();
+                throw;
+            }
 
             return GetByteArrayAsyncCore(request, cancellationToken);
         }
@@ -315,9 +329,16 @@ namespace System.Net.Http
         public Task<Stream> GetStreamAsync(Uri? requestUri, CancellationToken cancellationToken)
         {
             HttpRequestMessage request = CreateRequestMessage(HttpMethod.Get, requestUri);
-
-            // Called outside of async state machine to propagate certain exception even without awaiting the returned task.
-            CheckRequestBeforeSend(request);
+            try
+            {
+                // Called outside of async state machine to propagate certain exception even without awaiting the returned task.
+                CheckRequestBeforeSend(request);
+            }
+            catch
+            {
+                request.Dispose();
+                throw;
+            }
 
             return GetStreamAsyncCore(request, cancellationToken);
         }
@@ -374,8 +395,19 @@ namespace System.Net.Http
         public Task<HttpResponseMessage> GetAsync([StringSyntax(StringSyntaxAttribute.Uri)] string? requestUri, HttpCompletionOption completionOption, CancellationToken cancellationToken) =>
             GetAsync(CreateUri(requestUri), completionOption, cancellationToken);
 
-        public Task<HttpResponseMessage> GetAsync(Uri? requestUri, HttpCompletionOption completionOption, CancellationToken cancellationToken) =>
-            SendAsync(CreateRequestMessage(HttpMethod.Get, requestUri), completionOption, cancellationToken);
+        public Task<HttpResponseMessage> GetAsync(Uri? requestUri, HttpCompletionOption completionOption, CancellationToken cancellationToken)
+        {
+            HttpRequestMessage request = CreateRequestMessage(HttpMethod.Get, requestUri);
+            try
+            {
+                return SendAsync(request, completionOption, cancellationToken);
+            }
+            catch
+            {
+                request.Dispose();
+                throw;
+            }
+        }
 
         public Task<HttpResponseMessage> PostAsync([StringSyntax(StringSyntaxAttribute.Uri)] string? requestUri, HttpContent? content) =>
             PostAsync(CreateUri(requestUri), content);
@@ -390,7 +422,15 @@ namespace System.Net.Http
         {
             HttpRequestMessage request = CreateRequestMessage(HttpMethod.Post, requestUri);
             request.Content = content;
-            return SendAsync(request, cancellationToken);
+            try
+            {
+                return SendAsync(request, cancellationToken);
+            }
+            catch
+            {
+                request.Dispose();
+                throw;
+            }
         }
 
         public Task<HttpResponseMessage> PutAsync([StringSyntax(StringSyntaxAttribute.Uri)] string? requestUri, HttpContent? content) =>
@@ -406,7 +446,15 @@ namespace System.Net.Http
         {
             HttpRequestMessage request = CreateRequestMessage(HttpMethod.Put, requestUri);
             request.Content = content;
-            return SendAsync(request, cancellationToken);
+            try
+            {
+                return SendAsync(request, cancellationToken);
+            }
+            catch
+            {
+                request.Dispose();
+                throw;
+            }
         }
 
         public Task<HttpResponseMessage> PatchAsync([StringSyntax(StringSyntaxAttribute.Uri)] string? requestUri, HttpContent? content) =>
@@ -422,7 +470,15 @@ namespace System.Net.Http
         {
             HttpRequestMessage request = CreateRequestMessage(HttpMethod.Patch, requestUri);
             request.Content = content;
-            return SendAsync(request, cancellationToken);
+            try
+            {
+                return SendAsync(request, cancellationToken);
+            }
+            catch
+            {
+                request.Dispose();
+                throw;
+            }
         }
 
         public Task<HttpResponseMessage> DeleteAsync([StringSyntax(StringSyntaxAttribute.Uri)] string? requestUri) =>
@@ -434,8 +490,19 @@ namespace System.Net.Http
         public Task<HttpResponseMessage> DeleteAsync([StringSyntax(StringSyntaxAttribute.Uri)] string? requestUri, CancellationToken cancellationToken) =>
             DeleteAsync(CreateUri(requestUri), cancellationToken);
 
-        public Task<HttpResponseMessage> DeleteAsync(Uri? requestUri, CancellationToken cancellationToken) =>
-            SendAsync(CreateRequestMessage(HttpMethod.Delete, requestUri), cancellationToken);
+        public Task<HttpResponseMessage> DeleteAsync(Uri? requestUri, CancellationToken cancellationToken)
+        {
+            HttpRequestMessage request = CreateRequestMessage(HttpMethod.Delete, requestUri);
+            try
+            {
+                return SendAsync(request, cancellationToken);
+            }
+            catch
+            {
+                request.Dispose();
+                throw;
+            }
+        }
 
         #endregion REST Send Overloads
 
