@@ -172,10 +172,12 @@ namespace System.DirectoryServices.ActiveDirectory
                     if (e.ErrorCode == unchecked((int)0x80072030))
                     {
                         // if it is ADAM and transport type is SMTP, throw NotSupportedException.
-                        DirectoryEntry tmpDE = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE);
-                        if (Utils.CheckCapability(tmpDE, Capability.ActiveDirectoryApplicationMode) && transport == ActiveDirectoryTransportType.Smtp)
+                        using (DirectoryEntry tmpDE = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE))
                         {
-                            throw new NotSupportedException(SR.NotSupportTransportSMTP);
+                            if (Utils.CheckCapability(tmpDE, Capability.ActiveDirectoryApplicationMode) && transport == ActiveDirectoryTransportType.Smtp)
+                            {
+                                throw new NotSupportedException(SR.NotSupportTransportSMTP);
+                            }
                         }
                     }
 

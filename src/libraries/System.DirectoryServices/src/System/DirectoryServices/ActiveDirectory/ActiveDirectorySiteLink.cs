@@ -50,7 +50,15 @@ namespace System.DirectoryServices.ActiveDirectory
             try
             {
                 de = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE);
-                string config = (string)PropertyManager.GetPropertyValue(context, de, PropertyManager.ConfigurationNamingContext)!;
+                string config;
+                try
+                {
+                    config = (string)PropertyManager.GetPropertyValue(context, de, PropertyManager.ConfigurationNamingContext)!;
+                }
+                finally
+                {
+                    de.Dispose();
+                }
 
                 string parentDN;
                 if (transport == ActiveDirectoryTransportType.Rpc)
@@ -85,10 +93,12 @@ namespace System.DirectoryServices.ActiveDirectory
                 if (e.ErrorCode == unchecked((int)0x80072030))
                 {
                     // if it is ADAM and transport type is SMTP, throw NotSupportedException.
-                    DirectoryEntry tmpDE = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE);
-                    if (Utils.CheckCapability(tmpDE, Capability.ActiveDirectoryApplicationMode) && transport == ActiveDirectoryTransportType.Smtp)
+                    using (DirectoryEntry tmpDE = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE))
                     {
-                        throw new NotSupportedException(SR.NotSupportTransportSMTP);
+                        if (Utils.CheckCapability(tmpDE, Capability.ActiveDirectoryApplicationMode) && transport == ActiveDirectoryTransportType.Smtp)
+                        {
+                            throw new NotSupportedException(SR.NotSupportTransportSMTP);
+                        }
                     }
                 }
 
@@ -127,7 +137,15 @@ namespace System.DirectoryServices.ActiveDirectory
             try
             {
                 de = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE);
-                string config = (string)PropertyManager.GetPropertyValue(context, de, PropertyManager.ConfigurationNamingContext)!;
+                string config;
+                try
+                {
+                    config = (string)PropertyManager.GetPropertyValue(context, de, PropertyManager.ConfigurationNamingContext)!;
+                }
+                finally
+                {
+                    de.Dispose();
+                }
                 string containerDN = "CN=Inter-Site Transports,CN=Sites," + config;
                 if (transport == ActiveDirectoryTransportType.Rpc)
                     containerDN = "CN=IP," + containerDN;
@@ -174,15 +192,17 @@ namespace System.DirectoryServices.ActiveDirectory
                 if (e.ErrorCode == unchecked((int)0x80072030))
                 {
                     // if it is ADAM and transport type is SMTP, throw NotSupportedException.
-                    DirectoryEntry tmpDE = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE);
-                    if (Utils.CheckCapability(tmpDE, Capability.ActiveDirectoryApplicationMode) && transport == ActiveDirectoryTransportType.Smtp)
+                    using (DirectoryEntry tmpDE = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE))
                     {
-                        throw new NotSupportedException(SR.NotSupportTransportSMTP);
-                    }
-                    else
-                    {
-                        // object is not found since we cannot even find the container in which to search
-                        throw new ActiveDirectoryObjectNotFoundException(SR.DSNotFound, typeof(ActiveDirectorySiteLink), siteLinkName);
+                        if (Utils.CheckCapability(tmpDE, Capability.ActiveDirectoryApplicationMode) && transport == ActiveDirectoryTransportType.Smtp)
+                        {
+                            throw new NotSupportedException(SR.NotSupportTransportSMTP);
+                        }
+                        else
+                        {
+                            // object is not found since we cannot even find the container in which to search
+                            throw new ActiveDirectoryObjectNotFoundException(SR.DSNotFound, typeof(ActiveDirectorySiteLink), siteLinkName);
+                        }
                     }
                 }
 
