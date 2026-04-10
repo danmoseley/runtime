@@ -137,7 +137,15 @@ namespace System.DirectoryServices.ActiveDirectory
             try
             {
                 de = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE);
-                string config = (string)PropertyManager.GetPropertyValue(context, de, PropertyManager.ConfigurationNamingContext)!;
+                string config;
+                try
+                {
+                    config = (string)PropertyManager.GetPropertyValue(context, de, PropertyManager.ConfigurationNamingContext)!;
+                }
+                finally
+                {
+                    de.Dispose();
+                }
                 _siteDN = "CN=Sites," + config;
                 // bind to the site container
                 de = DirectoryEntryManager.GetDirectoryEntry(context, _siteDN);
@@ -175,8 +183,10 @@ namespace System.DirectoryServices.ActiveDirectory
             _name = siteName;
             this.existing = existing;
 
-            DirectoryEntry de = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE);
-            _siteDN = "CN=Sites," + (string)PropertyManager.GetPropertyValue(context, de, PropertyManager.ConfigurationNamingContext)!;
+            using (DirectoryEntry de = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE))
+            {
+                _siteDN = "CN=Sites," + (string)PropertyManager.GetPropertyValue(context, de, PropertyManager.ConfigurationNamingContext)!;
+            }
 
             cachedEntry = DirectoryEntryManager.GetDirectoryEntry(context, "CN=" + siteName + "," + _siteDN);
             _subnets = new ActiveDirectorySubnetCollection(context, "CN=" + siteName + "," + _siteDN);
@@ -375,29 +385,36 @@ namespace System.DirectoryServices.ActiveDirectory
 
                             try
                             {
-                                hostname = (string)PropertyManager.GetPropertyValue(context, tmp.Parent, PropertyManager.DnsHostName)!;
-                            }
-                            catch (COMException e)
-                            {
-                                if (e.ErrorCode == unchecked((int)0x80072030))
+                                try
                                 {
-                                    // indicates a demoted server
-                                    return null;
+                                    hostname = (string)PropertyManager.GetPropertyValue(context, tmp.Parent, PropertyManager.DnsHostName)!;
+                                }
+                                catch (COMException e)
+                                {
+                                    if (e.ErrorCode == unchecked((int)0x80072030))
+                                    {
+                                        // indicates a demoted server
+                                        return null;
+                                    }
+                                }
+                                if (IsADAM)
+                                {
+                                    int port = (int)PropertyManager.GetPropertyValue(context, tmp, PropertyManager.MsDSPortLDAP)!;
+                                    string fullHostName = hostname!;
+                                    if (port != 389)
+                                    {
+                                        fullHostName = hostname + ":" + port;
+                                    }
+                                    _topologyGenerator = new AdamInstance(Utils.GetNewDirectoryContext(fullHostName, DirectoryContextType.DirectoryServer, context), fullHostName);
+                                }
+                                else
+                                {
+                                    _topologyGenerator = new DomainController(Utils.GetNewDirectoryContext(hostname, DirectoryContextType.DirectoryServer, context), hostname!);
                                 }
                             }
-                            if (IsADAM)
+                            finally
                             {
-                                int port = (int)PropertyManager.GetPropertyValue(context, tmp, PropertyManager.MsDSPortLDAP)!;
-                                string fullHostName = hostname!;
-                                if (port != 389)
-                                {
-                                    fullHostName = hostname + ":" + port;
-                                }
-                                _topologyGenerator = new AdamInstance(Utils.GetNewDirectoryContext(fullHostName, DirectoryContextType.DirectoryServer, context), fullHostName);
-                            }
-                            else
-                            {
-                                _topologyGenerator = new DomainController(Utils.GetNewDirectoryContext(hostname, DirectoryContextType.DirectoryServer, context), hostname!);
+                                tmp.Dispose();
                             }
                         }
                     }
@@ -661,21 +678,23 @@ namespace System.DirectoryServices.ActiveDirectory
         {
             get
             {
-                DirectoryEntry de = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE);
-                PropertyValueCollection values;
-                try
+                using (DirectoryEntry de = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE))
                 {
-                    values = de.Properties["supportedCapabilities"];
-                }
-                catch (COMException e)
-                {
-                    throw ExceptionHelper.GetExceptionFromCOMException(context, e);
-                }
+                    PropertyValueCollection values;
+                    try
+                    {
+                        values = de.Properties["supportedCapabilities"];
+                    }
+                    catch (COMException e)
+                    {
+                        throw ExceptionHelper.GetExceptionFromCOMException(context, e);
+                    }
 
-                if (values.Contains(SupportedCapability.ADAMOid))
-                    _isADAMServer = true;
+                    if (values.Contains(SupportedCapability.ADAMOid))
+                        _isADAMServer = true;
 
-                return _isADAMServer;
+                    return _isADAMServer;
+                }
             }
         }
 
@@ -692,6 +711,7 @@ namespace System.DirectoryServices.ActiveDirectory
                     }
                     catch (COMException e)
                     {
+                        tmp.Dispose();
                         if (e.ErrorCode == unchecked((int)0x80072030))
                         {
                             string message = SR.Format(SR.NTDSSiteSetting, _name);
@@ -1131,10 +1151,13 @@ namespace System.DirectoryServices.ActiveDirectory
         private void GetSubnets()
         {
             // performs a search to find out the subnets that belong to this site
-            DirectoryEntry de = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE);
-            string config = (string)PropertyManager.GetPropertyValue(context, de, PropertyManager.ConfigurationNamingContext)!;
+            string config;
+            using (DirectoryEntry rootDSE = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE))
+            {
+                config = (string)PropertyManager.GetPropertyValue(context, rootDSE, PropertyManager.ConfigurationNamingContext)!;
+            }
             string subnetContainer = "CN=Subnets,CN=Sites," + config;
-            de = DirectoryEntryManager.GetDirectoryEntry(context, subnetContainer);
+            DirectoryEntry de = DirectoryEntryManager.GetDirectoryEntry(context, subnetContainer);
 
             ADSearcher adSearcher = new ADSearcher(de,
                                                   "(&(objectClass=subnet)(objectCategory=subnet)(siteObject=" + Utils.GetEscapedFilterValue((string)PropertyManager.GetPropertyValue(context, cachedEntry, PropertyManager.DistinguishedName)!) + "))",
@@ -1176,10 +1199,13 @@ namespace System.DirectoryServices.ActiveDirectory
 
         private void GetAdjacentSites()
         {
-            DirectoryEntry de = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE);
-            string config = (string)de.Properties["configurationNamingContext"][0]!;
+            string config;
+            using (DirectoryEntry rootDSE = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE))
+            {
+                config = (string)rootDSE.Properties["configurationNamingContext"][0]!;
+            }
             string transportContainer = "CN=Inter-Site Transports,CN=Sites," + config;
-            de = DirectoryEntryManager.GetDirectoryEntry(context, transportContainer);
+            DirectoryEntry de = DirectoryEntryManager.GetDirectoryEntry(context, transportContainer);
             ADSearcher adSearcher = new ADSearcher(de,
                                                   "(&(objectClass=siteLink)(objectCategory=SiteLink)(siteList=" + Utils.GetEscapedFilterValue((string)PropertyManager.GetPropertyValue(context, cachedEntry, PropertyManager.DistinguishedName)!) + "))",
                                                   s_cnDistinguishedName,
@@ -1244,10 +1270,13 @@ namespace System.DirectoryServices.ActiveDirectory
 
         private void GetLinks()
         {
-            DirectoryEntry de = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE);
-            string config = (string)PropertyManager.GetPropertyValue(context, de, PropertyManager.ConfigurationNamingContext)!;
+            string config;
+            using (DirectoryEntry rootDSE = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE))
+            {
+                config = (string)PropertyManager.GetPropertyValue(context, rootDSE, PropertyManager.ConfigurationNamingContext)!;
+            }
             string transportContainer = "CN=Inter-Site Transports,CN=Sites," + config;
-            de = DirectoryEntryManager.GetDirectoryEntry(context, transportContainer);
+            DirectoryEntry de = DirectoryEntryManager.GetDirectoryEntry(context, transportContainer);
             ADSearcher adSearcher = new ADSearcher(de,
                                                   "(&(objectClass=siteLink)(objectCategory=SiteLink)(siteList=" + Utils.GetEscapedFilterValue((string)PropertyManager.GetPropertyValue(context, cachedEntry, PropertyManager.DistinguishedName)!) + "))",
                                                   s_cnDistinguishedName,

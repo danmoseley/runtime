@@ -353,19 +353,21 @@ namespace System.DirectoryServices.ActiveDirectory
                         if (result == Interop.Errors.ERROR_DS_DRA_BAD_DN || result == Interop.Errors.ERROR_DS_NAME_UNPARSEABLE)
                             throw new ArgumentException(ExceptionHelper.GetErrorMessage(result, false), "objectPath");
 
-                        DirectoryEntry verifyEntry = DirectoryEntryManager.GetDirectoryEntry(this.context, partition);
-                        try
+                        using (DirectoryEntry verifyEntry = DirectoryEntryManager.GetDirectoryEntry(this.context, partition))
                         {
-                            verifyEntry.RefreshCache(s_name);
-                        }
-                        catch (COMException e)
-                        {
-                            if (e.ErrorCode == unchecked((int)0x80072020) ||          // dir_error on server side
-                                   e.ErrorCode == unchecked((int)0x80072030))           // object not exists
-                                throw new ArgumentException(SR.DSNoObject, "objectPath");
-                            else if (e.ErrorCode == unchecked((int)0x80005000) ||          // bad path name
-                                   e.ErrorCode == unchecked((int)0x80072032)) // ERROR_DS_INVALID_DN_SYNTAX
-                                throw new ArgumentException(SR.DSInvalidPath, "objectPath");
+                            try
+                            {
+                                verifyEntry.RefreshCache(s_name);
+                            }
+                            catch (COMException e)
+                            {
+                                if (e.ErrorCode == unchecked((int)0x80072020) ||          // dir_error on server side
+                                       e.ErrorCode == unchecked((int)0x80072030))           // object not exists
+                                    throw new ArgumentException(SR.DSNoObject, "objectPath");
+                                else if (e.ErrorCode == unchecked((int)0x80005000) ||          // bad path name
+                                       e.ErrorCode == unchecked((int)0x80072032)) // ERROR_DS_INVALID_DN_SYNTAX
+                                    throw new ArgumentException(SR.DSInvalidPath, "objectPath");
+                            }
                         }
                     }
                     else

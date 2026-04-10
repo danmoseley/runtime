@@ -29,7 +29,15 @@ namespace System.DirectoryServices.ActiveDirectory
             try
             {
                 de = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE);
-                string config = (string)PropertyManager.GetPropertyValue(context, de, PropertyManager.ConfigurationNamingContext)!;
+                string config;
+                try
+                {
+                    config = (string)PropertyManager.GetPropertyValue(context, de, PropertyManager.ConfigurationNamingContext)!;
+                }
+                finally
+                {
+                    de.Dispose();
+                }
                 string subnetdn = "CN=Subnets,CN=Sites," + config;
                 de = DirectoryEntryManager.GetDirectoryEntry(context, subnetdn);
             }

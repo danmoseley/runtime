@@ -57,16 +57,23 @@ namespace System.DirectoryServices.ActiveDirectory
                 // (also check that the "isGlobalCatalogReady" attribute is true)
                 directoryEntryMgr = new DirectoryEntryManager(context);
                 DirectoryEntry rootDSE = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE);
-                if (!Utils.CheckCapability(rootDSE, Capability.ActiveDirectory))
+                try
                 {
-                    throw new ActiveDirectoryObjectNotFoundException(SR.Format(SR.GCNotFound, context.Name), typeof(GlobalCatalog), context.Name);
-                }
+                    if (!Utils.CheckCapability(rootDSE, Capability.ActiveDirectory))
+                    {
+                        throw new ActiveDirectoryObjectNotFoundException(SR.Format(SR.GCNotFound, context.Name), typeof(GlobalCatalog), context.Name);
+                    }
 
-                gcDnsName = (string)PropertyManager.GetPropertyValue(context, rootDSE, PropertyManager.DnsHostName)!;
-                isGlobalCatalog = (bool)bool.Parse((string)PropertyManager.GetPropertyValue(context, rootDSE, PropertyManager.IsGlobalCatalogReady)!);
-                if (!isGlobalCatalog)
+                    gcDnsName = (string)PropertyManager.GetPropertyValue(context, rootDSE, PropertyManager.DnsHostName)!;
+                    isGlobalCatalog = (bool)bool.Parse((string)PropertyManager.GetPropertyValue(context, rootDSE, PropertyManager.IsGlobalCatalogReady)!);
+                    if (!isGlobalCatalog)
+                    {
+                        throw new ActiveDirectoryObjectNotFoundException(SR.Format(SR.GCNotFound, context.Name), typeof(GlobalCatalog), context.Name);
+                    }
+                }
+                finally
                 {
-                    throw new ActiveDirectoryObjectNotFoundException(SR.Format(SR.GCNotFound, context.Name), typeof(GlobalCatalog), context.Name);
+                    rootDSE.Dispose();
                 }
             }
             catch (COMException e)

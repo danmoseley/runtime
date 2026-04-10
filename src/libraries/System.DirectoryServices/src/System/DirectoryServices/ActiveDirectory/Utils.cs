@@ -886,6 +886,7 @@ namespace System.DirectoryServices.ActiveDirectory
                 }
                 else
                 {
+                    de.Dispose();
                     // throw exception as the call failed
                     throw ExceptionHelper.GetExceptionFromCOMException(new COMException(ExceptionHelper.GetErrorMessage(hr, true), hr));
                 }
@@ -911,6 +912,10 @@ namespace System.DirectoryServices.ActiveDirectory
                 {
                     throw ExceptionHelper.GetExceptionFromCOMException(server.Context, e);
                 }
+                finally
+                {
+                    de.Dispose();
+                }
             }
             else
             {
@@ -919,6 +924,15 @@ namespace System.DirectoryServices.ActiveDirectory
                 try
                 {
                     originatingServerName = (string?)PropertyManager.GetPropertyValue(de.Parent, PropertyManager.DnsHostName);
+
+                    if (server is AdamInstance)
+                    {
+                        // we might need to add the port number
+                        int portnumber = (int)PropertyManager.GetPropertyValue(server.Context, de, PropertyManager.MsDSPortLDAP)!;
+
+                        if (portnumber != 389)
+                            originatingServerName = originatingServerName + ":" + portnumber;
+                    }
                 }
                 catch (COMException e)
                 {
@@ -927,13 +941,9 @@ namespace System.DirectoryServices.ActiveDirectory
                     else
                         throw ExceptionHelper.GetExceptionFromCOMException(server.Context, e);
                 }
-                if (server is AdamInstance)
+                finally
                 {
-                    // we might need to add the port number
-                    int portnumber = (int)PropertyManager.GetPropertyValue(server.Context, de, PropertyManager.MsDSPortLDAP)!;
-
-                    if (portnumber != 389)
-                        originatingServerName = originatingServerName + ":" + portnumber;
+                    de.Dispose();
                 }
             }
 
@@ -1039,9 +1049,13 @@ namespace System.DirectoryServices.ActiveDirectory
                         if (context.ContextType == DirectoryContextType.DirectoryServer)
                         {
                             // need first to decide whether this is a server in the root domain or not
-                            DirectoryEntry de = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE);
-                            string? namingContext = (string?)PropertyManager.GetPropertyValue(context, de, PropertyManager.DefaultNamingContext);
-                            string? rootNamingContext = (string?)PropertyManager.GetPropertyValue(context, de, PropertyManager.RootDomainNamingContext);
+                            string? namingContext;
+                            string? rootNamingContext;
+                            using (DirectoryEntry de = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE))
+                            {
+                                namingContext = (string?)PropertyManager.GetPropertyValue(context, de, PropertyManager.DefaultNamingContext);
+                                rootNamingContext = (string?)PropertyManager.GetPropertyValue(context, de, PropertyManager.RootDomainNamingContext);
+                            }
                             if (Compare(namingContext, rootNamingContext) == 0)
                             {
                                 serverName = context.Name!;

@@ -47,7 +47,15 @@ namespace System.DirectoryServices.ActiveDirectory
             DirectoryEntry de = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE);
             try
             {
-                string serverDN = (string)PropertyManager.GetPropertyValue(context, de, PropertyManager.ServerName)!;
+                string serverDN;
+                try
+                {
+                    serverDN = (string)PropertyManager.GetPropertyValue(context, de, PropertyManager.ServerName)!;
+                }
+                finally
+                {
+                    de.Dispose();
+                }
                 string connectionContainer = "CN=NTDS Settings," + serverDN;
                 de = DirectoryEntryManager.GetDirectoryEntry(context, connectionContainer);
                 // doing the search to find the connection object based on its name
@@ -136,7 +144,15 @@ namespace System.DirectoryServices.ActiveDirectory
             DirectoryEntry de = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE);
             try
             {
-                string serverDN = (string)PropertyManager.GetPropertyValue(context, de, PropertyManager.ServerName)!;
+                string serverDN;
+                try
+                {
+                    serverDN = (string)PropertyManager.GetPropertyValue(context, de, PropertyManager.ServerName)!;
+                }
+                finally
+                {
+                    de.Dispose();
+                }
                 string connectionContainer = "CN=NTDS Settings," + serverDN;
                 de = DirectoryEntryManager.GetDirectoryEntry(context, connectionContainer);
 
@@ -149,8 +165,11 @@ namespace System.DirectoryServices.ActiveDirectory
 
                 // sourceserver property
                 DirectoryContext sourceServerContext = sourceServer.Context;
-                de = DirectoryEntryManager.GetDirectoryEntry(sourceServerContext, WellKnownDN.RootDSE);
-                string serverName = (string)PropertyManager.GetPropertyValue(sourceServerContext, de, PropertyManager.ServerName)!;
+                string serverName;
+                using (DirectoryEntry sourceRootDSE = DirectoryEntryManager.GetDirectoryEntry(sourceServerContext, WellKnownDN.RootDSE))
+                {
+                    serverName = (string)PropertyManager.GetPropertyValue(sourceServerContext, sourceRootDSE, PropertyManager.ServerName)!;
+                }
                 serverName = "CN=NTDS Settings," + serverName;
 
                 cachedDirectoryEntry.Properties["fromServer"].Add(serverName);
@@ -246,19 +265,21 @@ namespace System.DirectoryServices.ActiveDirectory
                 if (_sourceServerName == null)
                 {
                     string sourceServerDN = (string)PropertyManager.GetPropertyValue(context, cachedDirectoryEntry, PropertyManager.FromServer)!;
-                    DirectoryEntry de = DirectoryEntryManager.GetDirectoryEntry(context, sourceServerDN);
-                    if (IsADAM)
+                    using (DirectoryEntry de = DirectoryEntryManager.GetDirectoryEntry(context, sourceServerDN))
                     {
-                        int portnumber = (int)PropertyManager.GetPropertyValue(context, de, PropertyManager.MsDSPortLDAP)!;
-                        string? tmpServerName = (string?)PropertyManager.GetPropertyValue(context, de.Parent, PropertyManager.DnsHostName);
-                        if (portnumber != 389)
+                        if (IsADAM)
                         {
-                            _sourceServerName = tmpServerName + ":" + portnumber;
+                            int portnumber = (int)PropertyManager.GetPropertyValue(context, de, PropertyManager.MsDSPortLDAP)!;
+                            string? tmpServerName = (string?)PropertyManager.GetPropertyValue(context, de.Parent, PropertyManager.DnsHostName);
+                            if (portnumber != 389)
+                            {
+                                _sourceServerName = tmpServerName + ":" + portnumber;
+                            }
                         }
-                    }
-                    else
-                    {
-                        _sourceServerName = (string?)PropertyManager.GetPropertyValue(context, de.Parent, PropertyManager.DnsHostName);
+                        else
+                        {
+                            _sourceServerName = (string?)PropertyManager.GetPropertyValue(context, de.Parent, PropertyManager.DnsHostName);
+                        }
                     }
                 }
                 return _sourceServerName;
@@ -753,8 +774,11 @@ namespace System.DirectoryServices.ActiveDirectory
                 string destinationPath = (string)PropertyManager.GetPropertyValue(context, cachedDirectoryEntry, PropertyManager.FromServer)!;
                 string? destinationSite = Utils.GetDNComponents(destinationPath)[3].Value;
 
-                DirectoryEntry de = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE);
-                string serverDN = (string)PropertyManager.GetPropertyValue(context, de, PropertyManager.ServerName)!;
+                string serverDN;
+                using (DirectoryEntry de = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE))
+                {
+                    serverDN = (string)PropertyManager.GetPropertyValue(context, de, PropertyManager.ServerName)!;
+                }
                 string? serverSite = Utils.GetDNComponents(serverDN)[2].Value;
 
                 if (Utils.Compare(destinationSite, serverSite) == 0)
@@ -824,21 +848,23 @@ namespace System.DirectoryServices.ActiveDirectory
         {
             get
             {
-                DirectoryEntry de = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE);
-                PropertyValueCollection values;
-                try
+                using (DirectoryEntry de = DirectoryEntryManager.GetDirectoryEntry(context, WellKnownDN.RootDSE))
                 {
-                    values = de.Properties["supportedCapabilities"];
-                }
-                catch (COMException e)
-                {
-                    throw ExceptionHelper.GetExceptionFromCOMException(context, e);
-                }
+                    PropertyValueCollection values;
+                    try
+                    {
+                        values = de.Properties["supportedCapabilities"];
+                    }
+                    catch (COMException e)
+                    {
+                        throw ExceptionHelper.GetExceptionFromCOMException(context, e);
+                    }
 
-                if (values.Contains(ADAMGuid))
-                    _isADAMServer = true;
+                    if (values.Contains(ADAMGuid))
+                        _isADAMServer = true;
 
-                return _isADAMServer;
+                    return _isADAMServer;
+                }
             }
         }
 

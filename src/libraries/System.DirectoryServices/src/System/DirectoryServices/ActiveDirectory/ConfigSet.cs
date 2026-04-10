@@ -348,9 +348,11 @@ namespace System.DirectoryServices.ActiveDirectory
                 // whether or not the server is a DC or GC
                 //
                 isServer = true;
-                DirectoryEntry rootDSE = DirectoryEntryManager.GetDirectoryEntry(forestContext, WellKnownDN.RootDSE);
-                string? isGCReady = (string?)PropertyManager.GetPropertyValue(forestContext, rootDSE, PropertyManager.IsGlobalCatalogReady);
-                isGC = (Utils.Compare(isGCReady, "TRUE") == 0);
+                using (DirectoryEntry rootDSE = DirectoryEntryManager.GetDirectoryEntry(forestContext, WellKnownDN.RootDSE))
+                {
+                    string? isGCReady = (string?)PropertyManager.GetPropertyValue(forestContext, rootDSE, PropertyManager.IsGlobalCatalogReady);
+                    isGC = (Utils.Compare(isGCReady, "TRUE") == 0);
+                }
             }
 
             if (isServer)
