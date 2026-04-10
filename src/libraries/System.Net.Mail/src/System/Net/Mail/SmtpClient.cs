@@ -570,6 +570,7 @@ namespace System.Net.Mail
             {
                 _inCall = false;
                 timer?.Dispose();
+                cts?.Dispose();
 
                 // SendCompleted event should ever be invoked only for asynchronous send completions.
                 if (invokeSendCompleted && !synchronous)
