@@ -87,15 +87,23 @@ namespace System.Security.Cryptography.X509Certificates
 #else
                     CngKey cngKey = CngKey.Open(ncryptKey, cngHandleOptions);
 #endif
-                    T? result = createCng(cngKey);
+                    try
+                    {
+                        T? result = createCng(cngKey);
 
-                    // Dispose of cngKey if its ownership did not transfer to the underlying algorithm.
-                    if (result is null)
+                        // Dispose of cngKey if its ownership did not transfer to the underlying algorithm.
+                        if (result is null)
+                        {
+                            cngKey.Dispose();
+                        }
+
+                        return result;
+                    }
+                    catch
                     {
                         cngKey.Dispose();
+                        throw;
                     }
-
-                    return result;
                 }
 
                 CspParameters? cspParameters = GetPrivateKeyCsp(certContext);
@@ -110,7 +118,23 @@ namespace System.Security.Cryptography.X509Certificates
                     string keyStorageProvider = cspParameters.ProviderName!;
                     string keyName = cspParameters.KeyContainerName!;
                     CngKey cngKey = CngKey.Open(keyName, new CngProvider(keyStorageProvider));
-                    return createCng(cngKey);
+                    try
+                    {
+                        T? result = createCng(cngKey);
+
+                        // Dispose of cngKey if its ownership did not transfer to the underlying algorithm.
+                        if (result is null)
+                        {
+                            cngKey.Dispose();
+                        }
+
+                        return result;
+                    }
+                    catch
+                    {
+                        cngKey.Dispose();
+                        throw;
+                    }
                 }
                 else
                 {

@@ -483,6 +483,7 @@ namespace System.Security.Cryptography.Pkcs
             }
             finally
             {
+                cipher.Dispose();
                 CryptographicOperations.ZeroMemory(encryptedSpan);
                 CryptoPool.Return(encryptedRent, clearSize: 0);
             }
