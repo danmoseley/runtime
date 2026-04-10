@@ -386,7 +386,7 @@ namespace System.Net.Mail
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             //validation happens in MailMessage constructor
-            MailMessage mailMessage = new MailMessage(from, recipients, subject, body);
+            using MailMessage mailMessage = new MailMessage(from, recipients, subject, body);
             Send(mailMessage);
         }
         public void Send(MailMessage message)
@@ -585,7 +585,36 @@ namespace System.Net.Mail
         public void SendAsync(string from, string recipients, string? subject, string? body, object? userToken)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            SendAsync(new MailMessage(from, recipients, subject, body), userToken);
+            MailMessage mailMessage = new MailMessage(from, recipients, subject, body);
+
+            Task<(Exception? ex, bool _)> task;
+            try
+            {
+                task = SendAsyncInternal<AsyncReadWriteAdapter>(mailMessage, true, userToken, true);
+            }
+            catch
+            {
+                mailMessage.Dispose();
+                throw;
+            }
+
+            if (task.IsCompleted)
+            {
+                mailMessage.Dispose();
+
+                // If the task completed unwrap the exception (if any)
+                var (ex, sync) = task.GetAwaiter().GetResult();
+
+                if (ex != null && sync)
+                {
+                    ExceptionDispatchInfo.Throw(ex);
+                }
+            }
+            else
+            {
+                task.ContinueWith(static (t, state) => ((MailMessage)state!).Dispose(), mailMessage,
+                    CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+            }
         }
 
         public void SendAsync(MailMessage message, object? userToken)
@@ -636,10 +665,10 @@ namespace System.Net.Mail
 
 
         //************* Task-based async public methods *************************
-        public Task SendMailAsync(string from, string recipients, string? subject, string? body)
+        public async Task SendMailAsync(string from, string recipients, string? subject, string? body)
         {
-            var message = new MailMessage(from, recipients, subject, body);
-            return SendMailAsync(message, cancellationToken: default);
+            using var message = new MailMessage(from, recipients, subject, body);
+            await SendMailAsync(message, cancellationToken: default).ConfigureAwait(false);
         }
 
         public Task SendMailAsync(MailMessage message)
@@ -647,10 +676,10 @@ namespace System.Net.Mail
             return SendMailAsync(message, cancellationToken: default);
         }
 
-        public Task SendMailAsync(string from, string recipients, string? subject, string? body, CancellationToken cancellationToken)
+        public async Task SendMailAsync(string from, string recipients, string? subject, string? body, CancellationToken cancellationToken)
         {
-            var message = new MailMessage(from, recipients, subject, body);
-            return SendMailAsync(message, cancellationToken);
+            using var message = new MailMessage(from, recipients, subject, body);
+            await SendMailAsync(message, cancellationToken).ConfigureAwait(false);
         }
 
         public Task SendMailAsync(MailMessage message, CancellationToken cancellationToken)
