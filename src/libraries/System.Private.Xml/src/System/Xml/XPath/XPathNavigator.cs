@@ -1291,7 +1291,7 @@ namespace System.Xml.XPath
 
         public virtual void ReplaceSelf(string newNode)
         {
-            XmlTextReader reader = CreateContextReader(newNode, false);
+            using XmlTextReader reader = CreateContextReader(newNode, false);
             ReplaceSelf(reader);
         }
 
@@ -1444,7 +1444,7 @@ namespace System.Xml.XPath
 
         public virtual void AppendChild(string newChild)
         {
-            XmlReader reader = CreateContextReader(newChild, true);
+            using XmlReader reader = CreateContextReader(newChild, true);
             AppendChild(reader);
         }
 
@@ -1471,7 +1471,7 @@ namespace System.Xml.XPath
 
         public virtual void PrependChild(string newChild)
         {
-            XmlReader reader = CreateContextReader(newChild, true);
+            using XmlReader reader = CreateContextReader(newChild, true);
             PrependChild(reader);
         }
 
@@ -1498,7 +1498,7 @@ namespace System.Xml.XPath
 
         public virtual void InsertBefore(string newSibling)
         {
-            XmlReader reader = CreateContextReader(newSibling, false);
+            using XmlReader reader = CreateContextReader(newSibling, false);
             InsertBefore(reader);
         }
 
@@ -1525,7 +1525,7 @@ namespace System.Xml.XPath
 
         public virtual void InsertAfter(string newSibling)
         {
-            XmlReader reader = CreateContextReader(newSibling, false);
+            using XmlReader reader = CreateContextReader(newSibling, false);
             InsertAfter(reader);
         }
 

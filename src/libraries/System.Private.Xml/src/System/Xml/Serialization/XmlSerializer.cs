@@ -340,7 +340,7 @@ namespace System.Xml.Serialization
         [RequiresDynamicCode(XmlSerializer.AotSerializationWarning)]
         public void Serialize(TextWriter textWriter, object? o, XmlSerializerNamespaces? namespaces)
         {
-            XmlWriter xmlWriter = XmlWriter.Create(textWriter, s_writerSettings);
+            using XmlWriter xmlWriter = XmlWriter.Create(textWriter, s_writerSettings);
             Serialize(xmlWriter, o, namespaces);
         }
 
@@ -355,7 +355,7 @@ namespace System.Xml.Serialization
         [RequiresDynamicCode(XmlSerializer.AotSerializationWarning)]
         public void Serialize(Stream stream, object? o, XmlSerializerNamespaces? namespaces)
         {
-            XmlWriter xmlWriter = XmlWriter.Create(stream, s_writerSettings);
+            using XmlWriter xmlWriter = XmlWriter.Create(stream, s_writerSettings);
             Serialize(xmlWriter, o, namespaces);
         }
 
@@ -443,7 +443,7 @@ namespace System.Xml.Serialization
         [RequiresDynamicCode(XmlSerializer.AotSerializationWarning)]
         public object? Deserialize(Stream stream)
         {
-            XmlReader xmlReader = XmlReader.Create(stream, new XmlReaderSettings() { IgnoreWhitespace = true });
+            using XmlReader xmlReader = XmlReader.Create(stream, new XmlReaderSettings() { IgnoreWhitespace = true });
             return Deserialize(xmlReader, null);
         }
 
@@ -451,7 +451,7 @@ namespace System.Xml.Serialization
         [RequiresDynamicCode(XmlSerializer.AotSerializationWarning)]
         public object? Deserialize(TextReader textReader)
         {
-            XmlTextReader xmlReader = new XmlTextReader(textReader);
+            using XmlTextReader xmlReader = new XmlTextReader(textReader);
             xmlReader.WhitespaceHandling = WhitespaceHandling.Significant;
             xmlReader.Normalization = true;
             xmlReader.XmlResolver = null;
