@@ -186,6 +186,7 @@ namespace System.Text.RegularExpressions.Tests
                                     int lazyloop_pos = 0;
                                     int loop_iteration = 0;
                                     int stackpos = 0;
+                                    int startingStackpos = 0;
                                     ReadOnlySpan<char> slice = inputSpan.Slice(pos);
 
                                     // Match if at the beginning of the string.
@@ -263,7 +264,8 @@ namespace System.Text.RegularExpressions.Tests
                                     //}
 
                                     // Optional (greedy).
-                                    //{
+                                    {
+                                        startingStackpos = stackpos;
                                         loop_iteration = 0;
 
                                         LoopBody:
@@ -323,13 +325,14 @@ namespace System.Text.RegularExpressions.Tests
                                         UncaptureUntil(base.runstack![--stackpos]);
                                         Utilities.ValidateStackCookie(143337952, base.runstack![--stackpos]);
                                         slice = inputSpan.Slice(pos);
-                                        LoopEnd:;
-                                    //}
+                                        LoopEnd:
+                                        stackpos = startingStackpos; // Ensure any remaining backtracking state is removed.
+                                    }
 
                                     // Match '/'.
                                     if (slice.IsEmpty || slice[0] != '/')
                                     {
-                                        goto LoopIterationNoMatch;
+                                        goto LazyLoopBacktrack;
                                     }
 
                                     // The input matched.
@@ -457,6 +460,7 @@ namespace System.Text.RegularExpressions.Tests
                         };
                     }
                 }
+
                 """
             };
 

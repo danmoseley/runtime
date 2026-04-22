@@ -2152,11 +2152,14 @@ namespace System.Text.RegularExpressions
                             // is unnecessary, but the Atomic wrapper also prevents within-body backtracking from
                             // being triggered by subsequent failures. That's only safe when the body has no
                             // backtracking of its own and the last descendant is a type that won't be adversely
-                            // affected by seeing an Atomic ancestor.
+                            // affected by seeing an Atomic ancestor. Already-atomic loop types (Oneloopatomic, etc.)
+                            // are safe here because they already don't backtrack and won't alter behavior upon
+                            // seeing an Atomic ancestor.
                             if (loopChild.Kind is
-                                    RegexNodeKind.Boundary or RegexNodeKind.ECMABoundary or
+                                    (RegexNodeKind.Boundary or RegexNodeKind.ECMABoundary or
                                     RegexNodeKind.Multi or
-                                    RegexNodeKind.One or RegexNodeKind.Notone or RegexNodeKind.Set &&
+                                    RegexNodeKind.One or RegexNodeKind.Notone or RegexNodeKind.Set or
+                                    RegexNodeKind.Oneloopatomic or RegexNodeKind.Notoneloopatomic or RegexNodeKind.Setloopatomic) &&
                                 !MayContainBacktracking(node.Child(0)))
                             {
                                 node.MakeLoopAtomic();
@@ -2179,6 +2182,32 @@ namespace System.Text.RegularExpressions
                                 if (node.N == 1 || CanBeMadeAtomic(child, child, iterateNullableSubsequent: false, allowLazy: false))
                                 {
                                     ProcessNode(child, subsequent);
+
+                                    // After inner optimization (e.g. inner char loops made atomic), re-check whether
+                                    // the outer loop's body now qualifies for the allowlist. This handles the case where
+                                    // inner loops were not yet atomic when the allowlist was first checked above.
+                                    if (node.Kind is RegexNodeKind.Loop or RegexNodeKind.Lazyloop)
+                                    {
+                                        bool isLazy = node.Kind is RegexNodeKind.Lazyloop;
+                                        if (CanBeMadeAtomic(node, subsequent, iterateNullableSubsequent: !isLazy, allowLazy: isLazy))
+                                        {
+                                            RegexNode tail = node.Child(0);
+                                            while (tail.Kind is RegexNodeKind.Capture or RegexNodeKind.Concatenate)
+                                            {
+                                                tail = tail.Child(tail.ChildCount() - 1);
+                                            }
+
+                                            if ((tail.Kind is
+                                                    RegexNodeKind.Boundary or RegexNodeKind.ECMABoundary or
+                                                    RegexNodeKind.Multi or
+                                                    RegexNodeKind.One or RegexNodeKind.Notone or RegexNodeKind.Set or
+                                                    RegexNodeKind.Oneloopatomic or RegexNodeKind.Notoneloopatomic or RegexNodeKind.Setloopatomic) &&
+                                                !MayContainBacktracking(node.Child(0)))
+                                            {
+                                                node.MakeLoopAtomic();
+                                            }
+                                        }
+                                    }
                                 }
                             }
                             break;
@@ -2189,6 +2218,27 @@ namespace System.Text.RegularExpressions
                                 if (node.N == 1 || CanBeMadeAtomic(child, child, iterateNullableSubsequent: false, allowLazy: true))
                                 {
                                     ProcessNode(child, subsequent);
+
+                                    // Re-check after inner optimization, same as the Loop case above.
+                                    if (node.Kind is RegexNodeKind.Lazyloop &&
+                                        CanBeMadeAtomic(node, subsequent, iterateNullableSubsequent: false, allowLazy: true))
+                                    {
+                                        RegexNode tail = node.Child(0);
+                                        while (tail.Kind is RegexNodeKind.Capture or RegexNodeKind.Concatenate)
+                                        {
+                                            tail = tail.Child(tail.ChildCount() - 1);
+                                        }
+
+                                        if ((tail.Kind is
+                                                RegexNodeKind.Boundary or RegexNodeKind.ECMABoundary or
+                                                RegexNodeKind.Multi or
+                                                RegexNodeKind.One or RegexNodeKind.Notone or RegexNodeKind.Set or
+                                                RegexNodeKind.Oneloopatomic or RegexNodeKind.Notoneloopatomic or RegexNodeKind.Setloopatomic) &&
+                                            !MayContainBacktracking(node.Child(0)))
+                                        {
+                                            node.MakeLoopAtomic();
+                                        }
+                                    }
                                 }
                             }
                             break;
